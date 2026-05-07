@@ -1,0 +1,13 @@
+{
+  "id": "user.example",
+  "name": "Example",
+  "version": "1.0.0",
+  "description": "A local-first mini app.",
+  "icon": "E",
+  "entry": "index.html",
+  "permissions": ["storage"],
+  "createdAt": "2026-05-07T00:00:00Z",
+  "runtimeVersion": "1.0",
+  "networkAllowlist": [],
+  "signature": null
+}

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>城市应急巡检台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="bundle.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero" aria-labelledby="appTitle">
+      <div>
+        <p class="eyebrow">Local App Workbench / Bridge Mission</p>
+        <h1 id="appTitle">城市应急巡检台</h1>
+        <p class="subtitle">模拟一次外勤应急巡检：记录现场、调度联系人、保存证据、触发系统能力，并把每一次 AppRuntime bridge 调用写入审计日志。</p>
+      </div>
+      <div class="hero-card">
+        <span>任务编号</span>
+        <strong id="missionId">--</strong>
+        <small id="runtimeStatus">等待运行时注入</small>
+      </div>
+    </section>
+
+    <section class="mission-grid" aria-label="任务态势">
+      <article class="status-card primary">
+        <span>Bridge 健康度</span>
+        <strong id="healthScore">0%</strong>
+        <small id="healthText">尚未执行验证</small>
+      </article>
+      <article class="status-card">
+        <span>成功调用</span>
+        <strong id="passCount">0</strong>
+        <small>PASS</small>
+      </article>
+      <article class="status-card">
+        <span>失败 / 取消</span>
+        <strong id="failCount">0</strong>
+        <small>FAIL / CANCELLED</small>
+      </article>
+      <article class="status-card">
+        <span>最近位置</span>
+        <strong id="locationText">未知</strong>
+        <small>location / open.map</small>
+      </article>
+    </section>
+
+    <section class="control-strip">
+      <button id="runSafeButton" type="button">运行低风险体检</button>
+      <button id="runAllButton" class="danger" type="button">运行交互式全量验证</button>
+      <button id="clearButton" class="ghost" type="button">清空审计日志</button>
+    </section>
+
+    <section class="panel incident-panel">
+      <div class="panel-title">
+        <span>Incident Record</span>
+        <h2>现场记录</h2>
+      </div>
+      <label>
+        巡检主题
+        <input id="incidentTitle" value="地铁口积水与人流管控巡检">
+      </label>
+      <label>
+        现场摘要
+        <textarea id="incidentNote" rows="4">A2 出口附近道路积水，需记录定位、联系人、图片/音频证据，并安排 30 分钟后复查。</textarea>
+      </label>
+      <div class="button-grid">
+        <button data-test="saveIncident" type="button">保存现场记录</button>
+        <button data-test="secureAccess" type="button">写入安全口令</button>
+        <button data-test="clipboardBrief" type="button">复制调度简报</button>
+        <button data-test="shareBrief" type="button">分享文字简报</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <span>Runtime Baseline</span>
+        <h2>基础运行时与设备能力</h2>
+      </div>
+      <div class="button-grid">
+        <button data-test="appInfo" type="button">App / 权限 / 主题</button>
+        <button data-test="deviceInfo" type="button">设备 / 网络 / 电量</button>
+        <button data-test="uiFlow" type="button">Toast / Confirm / ActionSheet</button>
+        <button data-test="hapticsSuite" type="button">触感信号序列</button>
+        <button data-test="eventsToggle" type="button">订阅 / 取消事件</button>
+        <button data-test="networkFetch" type="button">桥接网络请求</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <span>Field Evidence</span>
+        <h2>外勤采集与证据链</h2>
+      </div>
+      <div class="button-grid">
+        <button data-test="fileEvidence" type="button">生成 / 读取 / 分享文件</button>
+        <button data-test="pickFile" type="button">选择外部文件</button>
+        <button data-test="pickImage" type="button">选择现场图片</button>
+        <button data-test="pickVideo" type="button">选择现场视频</button>
+        <button data-test="captureImage" type="button">拍摄照片</button>
+        <button data-test="captureVideo" type="button">拍摄视频</button>
+        <button data-test="scanAsset" type="button">扫描设备码</button>
+        <button data-test="audioStart" type="button">开始录音</button>
+        <button data-test="audioStop" type="button">停止并播放录音</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <span>System Coordination</span>
+        <h2>系统联动与外部应用</h2>
+      </div>
+      <div class="button-grid">
+        <button data-test="locationFix" type="button">定位并打开地图</button>
+        <button data-test="contactDispatch" type="button">选择联系人</button>
+        <button data-test="calendarFollowup" type="button">安排复查日程</button>
+        <button data-test="notificationPlan" type="button">安排 / 取消通知</button>
+        <button data-test="downloadChecklist" type="button">下载检查清单</button>
+        <button data-test="biometricGate" type="button">生物识别确认</button>
+        <button data-test="openExternal" type="button">打开 URL / 电话 / 邮件 / 设置</button>
+      </div>
+    </section>
+
+    <section class="panel log-panel">
+      <div class="panel-title">
+        <span>Audit Trail</span>
+        <h2>Bridge 调用审计</h2>
+      </div>
+      <div id="logList" class="log-list"></div>
+    </section>
+  </main>
+  <script src="bundle.js"></script>
+</body>
+</html>
