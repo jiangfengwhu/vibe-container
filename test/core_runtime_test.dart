@@ -426,7 +426,7 @@ void main() {
           ArchiveFile.bytes(file.uri.pathSegments.last, file.readAsBytesSync()),
         );
       }
-      final zipPath = '${tempDir.path}/app.iprod.zip';
+      final zipPath = '${tempDir.path}/app.ipd';
       File(zipPath).writeAsBytesSync(ZipEncoder().encode(archive));
 
       final manager = BundleManager(
@@ -453,7 +453,7 @@ void main() {
           ArchiveFile.bytes(file.uri.pathSegments.last, file.readAsBytesSync()),
         );
       }
-      final zipPath = '${tempDir.path}/custom-entry.iprod.zip';
+      final zipPath = '${tempDir.path}/custom-entry.ipd';
       File(zipPath).writeAsBytesSync(ZipEncoder().encode(archive));
 
       final manager = BundleManager(
@@ -489,14 +489,14 @@ void main() {
         httpClient: MockClient((request) async {
           expect(
             request.url.toString(),
-            'https://infra.308893.xyz/api/r2/objects/remote.iprod.zip',
+            'https://infra.308893.xyz/api/r2/objects/remote.ipd',
           );
           expect(request.headers['X-Sanyi-INFRA'], 'sanyi');
           return http.Response.bytes(bytes, 200);
         }),
       );
 
-      final installed = await manager.importRemoteArchive('remote.iprod.zip');
+      final installed = await manager.importRemoteArchive('remote.ipd');
 
       expect(installed.manifest.id, 'local.bookkeeping');
       expect(File('${installed.bundlePath}/index.html').existsSync(), isTrue);

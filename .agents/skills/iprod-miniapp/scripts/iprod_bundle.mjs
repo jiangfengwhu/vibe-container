@@ -107,7 +107,7 @@ function packBundle(args) {
   const directory = requiredArg(args, 0, 'directory');
   const options = parseOptions(args.slice(1));
   const manifest = validateBundle(directory);
-  const output = options.out[0] || join('dist', `${safeFileName(manifest.id)}.iprod.zip`);
+  const output = options.out[0] || join('dist', `${safeFileName(manifest.id)}.ipd`);
   mkdirSync(dirname(resolve(output)), { recursive: true });
   const result = spawnSync('zip', ['-qr', resolve(output), '.'], {
     cwd: resolve(directory),

@@ -249,7 +249,7 @@ const _localizedValues = <String, Map<String, String>>{
         '输入上传脚本返回的对象 key 或完整下载 URL，宿主会从 infra.308893.xyz 下载并校验导入。',
     'remoteBundleInputLabel': 'Bundle key 或下载 URL',
     'remoteBundleInputHint':
-        '例如 local.checkin.iprod.zip 或 https://infra.308893.xyz/api/r2/objects/...',
+        '例如 local.checkin.ipd 或 https://infra.308893.xyz/api/r2/objects/...',
     'downloadAndImport': '下载并导入',
     'remoteBundleRequired': '请输入 bundle key 或下载 URL。',
     'builtInSamples': '内置示例',
@@ -372,7 +372,7 @@ const _localizedValues = <String, Map<String, String>>{
         'Enter the object key or full download URL returned by the upload script. The host downloads from infra.308893.xyz, validates, and imports it.',
     'remoteBundleInputLabel': 'Bundle key or download URL',
     'remoteBundleInputHint':
-        'Example: local.checkin.iprod.zip or https://infra.308893.xyz/api/r2/objects/...',
+        'Example: local.checkin.ipd or https://infra.308893.xyz/api/r2/objects/...',
     'downloadAndImport': 'Download and import',
     'remoteBundleRequired': 'Enter a bundle key or download URL.',
     'builtInSamples': 'Built-in samples',

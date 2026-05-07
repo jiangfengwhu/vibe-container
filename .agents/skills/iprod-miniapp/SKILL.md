@@ -1,98 +1,104 @@
 ---
 name: iprod-miniapp
-description: Generate, validate, and package Local App Workbench web mini app bundles for import into the Flutter host app. Use when the user asks Codex to create an app, mini app, tool, widget, local web app, or .iprod.zip bundle that should run inside Local App Workbench.
+description: 为本地应用工作台（Local App Workbench / 拾趣）生成、校验并打包 Web mini app bundle，输出可被 Flutter 宿主导入的 .ipd 文件。当用户希望创建 app、mini app、小工具、widget、本地网页应用或 .ipd bundle 时使用。Use when the user asks to create an app, mini app, tool, widget, local web app, or .ipd bundle that should run inside Local App Workbench.
 ---
 
 # iProd Mini App
 
-Build one local-first web mini app bundle that can be imported by Local App Workbench.
+为本地应用工作台（拾趣）构建一个本地优先的 Web mini app bundle，并产出可导入的 `.ipd` 文件。
 
-## Output Contract
+## 输出契约
 
-Create a bundle directory whose root contains `app.json` and the HTML file referenced by `app.json.entry`. Other files are optional and must be referenced from the entry HTML with relative paths:
-
-```text
-app.json             # required metadata, version, permissions, entry
-index.html/main.html # required entry HTML named by app.json.entry
-any CSS/JS/assets referenced by the entry HTML
-```
-
-Then produce a packed artifact:
+bundle 是一个目录，根目录必须包含 `app.json` 和 `app.json.entry` 指向的入口 HTML。其它文件可选，必须由入口 HTML 用相对路径引用：
 
 ```text
-dist/<app-id>.iprod.zip
+app.json             # 必需，包含元数据、版本、权限和入口
+index.html/main.html # 必需，由 app.json.entry 决定文件名
+任意 CSS/JS/资源     # 可选，由入口 HTML 通过相对路径引用
 ```
 
-The zip root must contain `app.json`, not an extra wrapper folder.
+最终产物：
 
-## Workflow
+```text
+dist/<app-id>.ipd
+```
 
-1. Create a workspace directory under `generated-bundles/<slug>/`.
-2. Implement the app as a standalone web bundle. Local files and remote CDN resources are both allowed; if you use a build tool, include the generated files in the bundle.
-   - The host loads the HTML path from `app.json.entry`.
-   - CSS, JS, images, and assets are optional; keep local relative links correct inside the entry HTML.
-3. Design for the host runtime chrome. The host defaults to fully immersive: no chrome header, no top/bottom safe area padding. Declare what you need in `app.json.immersive` (`topInset`, `bottomInset`, `showHeader`); each defaults to `false`. The user can later override these per app from the Manage screen. When you opt out of insets, handle the safe area in CSS via `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)`.
-4. Use `window.AppRuntime` for all host capabilities. Do not call native channels directly.
-5. Keep data local-first. Use `AppRuntime.storage` for persistence.
-6. Request only the permissions that are truly needed in `app.json`.
-7. Run validation:
+`.ipd` 内部是一个 zip 容器，但对外只用 `.ipd` 后缀。压缩包的根必须直接是 `app.json`，不要再嵌套一层文件夹。
+
+## 工作流
+
+1. 在 `generated-bundles/<slug>/` 下建立工作目录。
+2. 把 mini app 实现成一个独立的 Web bundle。本地文件和远程 CDN 资源都可以使用；如果用了构建工具，请把构建产物放进 bundle 目录。
+   - 宿主会按 `app.json.entry` 加载入口 HTML。
+   - CSS、JS、图片、其它资源都是可选的，注意保持入口 HTML 中相对引用路径正确。
+3. **mini app 是全屏铺满渲染的。** 宿主默认开启全沉浸：不显示宿主 chrome 顶栏、不为顶部状态栏和底部 home 指示器留 SafeArea（`app.json.immersive.topInset` / `bottomInset` / `showHeader` 的默认值都是 `false`）。这意味着你的 HTML 会盖住状态栏和底部手势条，**你必须自己处理 SafeArea**，否则关键内容会被系统 UI 遮挡：
+   - 如果你自己写 viewport meta，记得加 `viewport-fit=cover`（宿主已经注入了一份，一般不用再加）。
+   - 顶部容器加 `padding-top: max(16px, env(safe-area-inset-top))`（旧 WebKit 可以再回退到 `constant(...)`）。
+   - 底部 bar、悬浮按钮、滚动列表加 `padding-bottom: max(16px, env(safe-area-inset-bottom))`。
+   - 全屏布局优先用 `min-height: 100dvh`，不要用 `100vh`。
+
+   如果某个方向你确实没法自己适配，可以在 `app.json.immersive` 中把 `topInset` / `bottomInset` 设为 `true`，让宿主帮你留出 SafeArea。`showHeader: true` 仅在 mini app 真的需要宿主提供返回 / 刷新 / 管理 chrome 顶栏时才使用。
+4. 所有宿主能力一律走 `window.AppRuntime`，不要直接调用 native channel。
+5. 数据本地优先，使用 `AppRuntime.storage` 持久化。
+6. `app.json` 中只声明真正会用到的权限。
+7. 校验 bundle：
 
 ```bash
 node scripts/iprod_bundle.mjs validate generated-bundles/<slug>
 ```
 
-8. Pack:
+8. 打包：
 
 ```bash
-node scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.iprod.zip
+node scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.ipd
 ```
 
-9. Upload the packed archive. This is required; do not finish after packing only:
+9. 上传打包结果。这是必需步骤，仅打包不算完成：
 
 ```bash
-node scripts/upload_bundle.mjs dist/<slug>.iprod.zip --key <slug>.iprod.zip
+node scripts/upload_bundle.mjs dist/<slug>.ipd --key <slug>.ipd
 ```
 
-10. Return the uploaded `downloadUrl` to the user. If validation, packing, or upload fails, fix the bundle and rerun validate/pack/upload before finishing.
+10. 把上传得到的 `downloadUrl` 返回给用户。如果校验、打包或上传失败，先修复 bundle，再重新跑 validate / pack / upload，最后再结束任务。
 
-## Manifest Rules
+## Manifest 规范
 
-`app.json` is required and must include:
+`app.json` 必需，且必须包含以下字段：
 
-- `id`: safe stable id, usually `user.<slug>` or `local.<slug>`
-- `name`
-- `version`
-- `description`
-- `icon`: short text icon
-- `entry`: relative local HTML path, usually `index.html`
-- `permissions`: any of `storage`, `secureStorage`, `notification`, `network`, `device`, `ui`, `clipboard`, `share`, `open`, `file`, `media`, `location`, `haptics`, `barcode`, `audio`, `biometric`, `contacts`, `calendar`, `download`, `events`
-- `createdAt`: ISO-8601
-- `runtimeVersion`: `1.0`
-- `networkAllowlist`: host names only
-- `signature`: `null` for MVP
-- `immersive` (optional): object `{ topInset?: bool, bottomInset?: bool, showHeader?: bool }`. Each field defaults to `false`. Set `topInset`/`bottomInset` to `true` only if the mini app cannot itself adapt to the status bar / home indicator; set `showHeader` to `true` if you want the host to render its back / refresh / manage chrome bar.
+- `id`：稳定且安全的 id，通常是 `user.<slug>` 或 `local.<slug>`
+- `name`：展示名
+- `version`：版本号
+- `description`：描述
+- `icon`：短文本图标
+- `entry`：相对本地 HTML 路径，通常是 `index.html`
+- `permissions`：可选自 `storage`、`secureStorage`、`notification`、`network`、`device`、`ui`、`clipboard`、`share`、`open`、`file`、`media`、`location`、`haptics`、`barcode`、`audio`、`biometric`、`contacts`、`calendar`、`download`、`events`
+- `createdAt`：ISO-8601 时间
+- `runtimeVersion`：固定 `1.0`
+- `networkAllowlist`：仅 host 名，不带协议和路径
+- `signature`：MVP 阶段固定为 `null`
+- `immersive`（可选）：对象 `{ topInset?: bool, bottomInset?: bool, showHeader?: bool }`，三个字段默认都是 `false`，代表 WebView 全屏铺满。**只要某个字段保持 `false`，mini app 就必须自己用 CSS `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` 处理对应方向的 SafeArea。** 仅在 mini app 无法自适应时才把 `topInset` / `bottomInset` 设为 `true`，仅在确实需要宿主返回 / 刷新 / 管理 chrome 顶栏时才把 `showHeader` 设为 `true`。
 
-If the app calls:
+权限和 API 的对应关系：
 
-- `AppRuntime.storage.*`, include `storage`
-- `AppRuntime.secureStorage.*`, include `secureStorage`
-- `AppRuntime.notification.*`, include `notification`
-- `AppRuntime.network.*`, include `network` and a non-empty `networkAllowlist`
-- `AppRuntime.<namespace>.*`, include the matching namespace permission for other native capabilities
+- 调用 `AppRuntime.storage.*`，加 `storage`
+- 调用 `AppRuntime.secureStorage.*`，加 `secureStorage`
+- 调用 `AppRuntime.notification.*`，加 `notification`
+- 调用 `AppRuntime.network.*`，加 `network`，并填非空的 `networkAllowlist`
+- 调用 `AppRuntime.<namespace>.*`（其它 native 能力），加同名 namespace 权限
 
-## Security Rules
+## 安全约束
 
-- No direct use of `AppRuntimeNative`.
-- Remote CDN scripts, styles, fonts, images, and other Web resources are allowed.
-- Browser networking such as `fetch`, `XMLHttpRequest`, WebSocket, and EventSource is allowed when the mini app needs it. Use `AppRuntime.network.fetch` only when you need host-mediated network calls and declare `network`.
-- Do not assume browser `localStorage` is the durable app store. Use `AppRuntime.storage`.
-- Avoid sensitive permissions unless requested.
+- 不要直接使用 `AppRuntimeNative`。
+- 远程 CDN 上的脚本、样式、字体、图片和其它 Web 资源都允许使用。
+- mini app 自己的浏览器网络请求（`fetch`、`XMLHttpRequest`、WebSocket、EventSource 等）允许使用；只有在需要宿主代理网络请求时才用 `AppRuntime.network.fetch`，并声明 `network` 权限。
+- 不要把 `localStorage` 当作长期存储，应使用 `AppRuntime.storage`。
+- 不要随意申请敏感权限，按需声明。
 
-## References
+## 参考
 
-Load only when needed:
+按需加载：
 
-- `references/app-runtime.md` for the JS API.
-- `references/app-json.md` for manifest examples.
-- `scripts/iprod_bundle.mjs` for deterministic create/validate/pack/inspect commands.
-- `scripts/upload_bundle.mjs` for uploading `.iprod.zip` archives to Cloudflare R2.
+- `references/app-runtime.md`：JS API 类型定义和 SafeArea 处理参考。
+- `references/app-json.md`：manifest 字段示例。
+- `scripts/iprod_bundle.mjs`：确定性的 create / validate / pack / inspect 命令。
+- `scripts/upload_bundle.mjs`：把 `.ipd` 上传到 Cloudflare R2。

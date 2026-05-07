@@ -8,7 +8,7 @@ const defaultAuth = process.env.IPROD_INFRA_AUTH || 'sanyi';
 async function main() {
   const archivePath = process.argv[2];
   if (!archivePath || archivePath.startsWith('--')) {
-    throw new Error('usage: upload_bundle.mjs <bundle.iprod.zip> [--key name.iprod.zip] [--base-url url] [--auth token]');
+    throw new Error('usage: upload_bundle.mjs <bundle.ipd> [--key name.ipd] [--base-url url] [--auth token]');
   }
 
   const options = parseOptions(process.argv.slice(3));

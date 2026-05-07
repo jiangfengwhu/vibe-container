@@ -8,7 +8,7 @@ MVP 使用 Flutter 构建跨平台宿主壳。Web 运行时通过 `webview_flutt
 
 - 应用库：展示名称、图标、描述和上次使用时间。卡片左滑可揭示「管理」按钮，点击或滑到底部进入管理页（权限、删除、沉浸模式）。
 - 内置示例 bundle 导入：目前仅保留一个“城市应急巡检台”，用于验证 AppRuntime bridge 全量能力。
-- 远程导入：支持从 Cloudflare R2 下载并导入生成好的 `.iprod.zip` bundle。
+- 远程导入：支持从 Cloudflare R2 下载并导入生成好的 `.ipd` bundle。
 - WebView 运行页：默认全沉浸、不显示宿主 header，加载错误友好展示，运行时桥接随页面自动注入。
 - 沉浸式容器：通过 `app.json.immersive` 声明（`topInset` / `bottomInset` / `showHeader`），默认 `{topInset: false, bottomInset: false, showHeader: false}`。用户可以在每个 mini app 的「管理」页里覆盖默认值；mini app 自身用 CSS `env(safe-area-inset-*)` 适配。
 - 应用级权限管理：支持 `storage`、`notification`、`network`。
@@ -129,15 +129,15 @@ index.html/main.html # 必需，实际路径由 app.json 的 entry 指定
 可以这样请求 Agent：
 
 ```text
-使用 iprod-miniapp skill 创建一个个人饮食计划 mini app，并打包成 .iprod.zip bundle。
+使用 iprod-miniapp skill 创建一个个人饮食计划 mini app，并打包成 .ipd bundle。
 ```
 
 该 skill 会指导 Agent 在 `generated-bundles/<slug>/` 下创建 bundle，随后校验并打包：
 
 ```bash
 node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs validate generated-bundles/<slug>
-node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.iprod.zip
-node .agents/skills/iprod-miniapp/scripts/upload_bundle.mjs dist/<slug>.iprod.zip --key <slug>.iprod.zip
+node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.ipd
+node .agents/skills/iprod-miniapp/scripts/upload_bundle.mjs dist/<slug>.ipd --key <slug>.ipd
 ```
 
 也可以手动创建一个起始 bundle：
@@ -145,12 +145,12 @@ node .agents/skills/iprod-miniapp/scripts/upload_bundle.mjs dist/<slug>.iprod.zi
 ```bash
 node tooling/bundle-kit/iprod_bundle.mjs create generated-bundles/todo --id user.todo --name 待办清单
 node tooling/bundle-kit/iprod_bundle.mjs validate generated-bundles/todo
-node tooling/bundle-kit/iprod_bundle.mjs pack generated-bundles/todo --out dist/todo.iprod.zip
+node tooling/bundle-kit/iprod_bundle.mjs pack generated-bundles/todo --out dist/todo.ipd
 ```
 
 项目开发时可以继续使用 `tooling/bundle-kit/iprod_bundle.mjs`；打包后的 skill 会自带 `scripts/iprod_bundle.mjs` 和 `scripts/upload_bundle.mjs`，方便在其他 agent 平台独立校验、打包并上传 bundle。
 
-`upload_bundle.mjs` 默认上传到 `https://infra.308893.xyz/api/r2/objects/<key>`，使用 `X-Sanyi-INFRA: sanyi`。成功后会输出可在宿主导入页使用的 `downloadUrl`。宿主应用的“从 Cloudflare 下载”入口同时接受对象 key（例如 `<slug>.iprod.zip`）或完整下载 URL。
+`upload_bundle.mjs` 默认上传到 `https://infra.308893.xyz/api/r2/objects/<key>`，使用 `X-Sanyi-INFRA: sanyi`。成功后会输出可在宿主导入页使用的 `downloadUrl`。宿主应用的“从 Cloudflare 下载”入口同时接受对象 key（例如 `<slug>.ipd`）或完整下载 URL。
 
 ## 打包 Agent Skill
 

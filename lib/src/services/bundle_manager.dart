@@ -170,7 +170,7 @@ class BundleManager {
     final downloads = Directory('${bundleRoot.path}/.downloads');
     await downloads.create(recursive: true);
     final archiveFile = File(
-      '${downloads.path}/${DateTime.now().microsecondsSinceEpoch}.iprod.zip',
+      '${downloads.path}/${DateTime.now().microsecondsSinceEpoch}.ipd',
     );
     try {
       await archiveFile.writeAsBytes(response.bodyBytes, flush: true);
