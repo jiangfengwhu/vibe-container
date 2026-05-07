@@ -84,6 +84,89 @@ class ManifestException implements Exception {
   String toString() => 'ManifestException: $message';
 }
 
+/// 沉浸式容器配置。
+///
+/// - [topInset] 为 false（默认）时宿主不为顶部状态栏让位，mini app 自行处理。
+/// - [bottomInset] 为 false（默认）时宿主不为底部 home indicator 让位。
+/// - [showHeader] 为 false（默认）时宿主不渲染 chrome header，给到完全沉浸的沉浸式 webview。
+class AppImmersiveConfig {
+  const AppImmersiveConfig({
+    this.topInset = false,
+    this.bottomInset = false,
+    this.showHeader = false,
+  });
+
+  final bool topInset;
+  final bool bottomInset;
+  final bool showHeader;
+
+  static const AppImmersiveConfig defaults = AppImmersiveConfig();
+
+  AppImmersiveConfig copyWith({
+    bool? topInset,
+    bool? bottomInset,
+    bool? showHeader,
+  }) {
+    return AppImmersiveConfig(
+      topInset: topInset ?? this.topInset,
+      bottomInset: bottomInset ?? this.bottomInset,
+      showHeader: showHeader ?? this.showHeader,
+    );
+  }
+
+  AppImmersiveConfig merge(AppImmersiveConfig? override) {
+    if (override == null) {
+      return this;
+    }
+    return AppImmersiveConfig(
+      topInset: override.topInset,
+      bottomInset: override.bottomInset,
+      showHeader: override.showHeader,
+    );
+  }
+
+  factory AppImmersiveConfig.fromJson(Object? value) {
+    if (value == null) {
+      return defaults;
+    }
+    if (value is! Map) {
+      throw const ManifestException('immersive must be an object');
+    }
+    bool readBool(String key, bool fallback) {
+      final raw = value[key];
+      if (raw == null) {
+        return fallback;
+      }
+      if (raw is! bool) {
+        throw ManifestException('immersive.$key must be a boolean');
+      }
+      return raw;
+    }
+
+    return AppImmersiveConfig(
+      topInset: readBool('topInset', false),
+      bottomInset: readBool('bottomInset', false),
+      showHeader: readBool('showHeader', false),
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'topInset': topInset,
+    'bottomInset': bottomInset,
+    'showHeader': showHeader,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AppImmersiveConfig &&
+      other.topInset == topInset &&
+      other.bottomInset == bottomInset &&
+      other.showHeader == showHeader;
+
+  @override
+  int get hashCode => Object.hash(topInset, bottomInset, showHeader);
+}
+
 class AppManifest {
   const AppManifest({
     required this.id,
@@ -97,6 +180,7 @@ class AppManifest {
     required this.runtimeVersion,
     this.networkAllowlist = const <String>[],
     this.signature,
+    this.immersive = AppImmersiveConfig.defaults,
   });
 
   final String id;
@@ -110,6 +194,7 @@ class AppManifest {
   final String runtimeVersion;
   final List<String> networkAllowlist;
   final String? signature;
+  final AppImmersiveConfig immersive;
 
   factory AppManifest.fromJson(Map<String, Object?> json) {
     final id = _string(json, 'id');
@@ -195,6 +280,7 @@ class AppManifest {
       runtimeVersion: runtimeVersion,
       networkAllowlist: allowlist,
       signature: json['signature'] as String?,
+      immersive: AppImmersiveConfig.fromJson(json['immersive']),
     );
   }
 
@@ -218,6 +304,7 @@ class AppManifest {
     'runtimeVersion': runtimeVersion,
     'networkAllowlist': networkAllowlist,
     'signature': signature,
+    'immersive': immersive.toJson(),
   };
 
   bool declares(AppCapability capability) => permissions.contains(capability);

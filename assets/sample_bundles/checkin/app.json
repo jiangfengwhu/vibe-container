@@ -30,5 +30,10 @@
   "createdAt": "2026-05-07T00:00:00Z",
   "runtimeVersion": "1.0",
   "networkAllowlist": ["example.com"],
-  "signature": null
+  "signature": null,
+  "immersive": {
+    "topInset": false,
+    "bottomInset": false,
+    "showHeader": false
+  }
 }

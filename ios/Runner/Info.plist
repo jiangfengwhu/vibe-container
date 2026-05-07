@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Local App Workbench</string>
+	<string>拾趣</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>local_app_workbench</string>
+	<string>Curio</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>允许 mini app 创建你确认的日历事件。</string>
 	<key>NSCameraUsageDescription</key>

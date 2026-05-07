@@ -14,7 +14,7 @@ import '../models/installed_app.dart';
 import '../services/app_environment.dart';
 import '../services/native_bridge_services.dart';
 import '../webview/web_app_document_builder.dart';
-import 'permission_screen.dart';
+import 'manage_screen.dart';
 import 'theme.dart';
 
 class RuntimeScreen extends StatefulWidget {
@@ -40,7 +40,6 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   String? _error;
   bool _loading = true;
   bool _didLoad = false;
-  bool _headerVisible = true;
 
   @override
   void initState() {
@@ -52,7 +51,6 @@ class _RuntimeScreenState extends State<RuntimeScreen>
       notifications: widget.environment.notifications,
       contextProvider: () => context,
       emitEvent: _emitRuntimeEvent,
-      setHeaderVisible: _setHeaderVisible,
     );
     _bridge = RuntimeBridge(
       currentApp: _currentApp,
@@ -130,25 +128,27 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   Widget build(BuildContext context) {
     final app = widget.environment.library.findById(widget.appId);
     final l10n = context.l10n;
+    final immersive = app?.effectiveImmersive ?? AppImmersiveConfig.defaults;
+    final showHeader = immersive.showHeader;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: _headerVisible
+      value: showHeader
           ? SystemUiOverlayStyle.dark
           : SystemUiOverlayStyle.light,
       child: Scaffold(
-        extendBody: true,
-        extendBodyBehindAppBar: !_headerVisible,
+        extendBody: !immersive.bottomInset,
+        extendBodyBehindAppBar: !showHeader,
         backgroundColor: Colors.black,
-        appBar: _headerVisible
+        appBar: showHeader
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(56),
                 child: _RuntimeHeader(
                   title: app?.manifest.name ?? l10n.runtimeTitle,
                   icon: app?.manifest.icon ?? '·',
-                  onPermissions: app == null
+                  onManage: app == null
                       ? null
                       : () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => PermissionScreen(
+                            builder: (_) => ManageScreen(
                               environment: widget.environment,
                               appId: widget.appId,
                             ),
@@ -156,43 +156,38 @@ class _RuntimeScreenState extends State<RuntimeScreen>
                         ),
                   onRefresh: _load,
                   onBack: () => Navigator.of(context).maybePop(),
-                  permissionsTooltip: l10n.permissionsTooltip,
+                  manageTooltip: l10n.manageTitle,
                   refreshTooltip: l10n.refreshTooltip,
                 ),
               )
             : null,
-        body: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            WebViewWidget(controller: _controller),
-            if (_loading)
-              const Positioned(
-                left: 0,
-                top: 0,
-                right: 0,
-                child: LinearProgressIndicator(
-                  minHeight: 2.5,
-                  backgroundColor: Colors.transparent,
-                  color: WorkbenchPalette.coral,
+        body: SafeArea(
+          top: !showHeader && immersive.topInset,
+          bottom: immersive.bottomInset,
+          left: false,
+          right: false,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              WebViewWidget(controller: _controller),
+              if (_loading)
+                const Positioned(
+                  left: 0,
+                  top: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    minHeight: 2.5,
+                    backgroundColor: Colors.transparent,
+                    color: WorkbenchPalette.coral,
+                  ),
                 ),
-              ),
-            if (_error != null) _RuntimeError(message: _error!, onRetry: _load),
-          ],
+              if (_error != null)
+                _RuntimeError(message: _error!, onRetry: _load),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _setHeaderVisible(bool visible) async {
-    if (!mounted || _headerVisible == visible) {
-      return;
-    }
-    setState(() => _headerVisible = visible);
-    if (visible) {
-      _setDefaultTopSystemUi();
-    } else {
-      _setImmersiveSystemUi();
-    }
   }
 
   static void _enterImmersiveMode() {
@@ -208,19 +203,6 @@ class _RuntimeScreenState extends State<RuntimeScreen>
         systemNavigationBarDividerColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
-  }
-
-  static void _setImmersiveSystemUi() {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarDividerColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
@@ -379,17 +361,17 @@ class _RuntimeHeader extends StatelessWidget {
     required this.icon,
     required this.onRefresh,
     required this.onBack,
-    required this.permissionsTooltip,
+    required this.manageTooltip,
     required this.refreshTooltip,
-    this.onPermissions,
+    this.onManage,
   });
 
   final String title;
   final String icon;
   final VoidCallback onRefresh;
   final VoidCallback onBack;
-  final VoidCallback? onPermissions;
-  final String permissionsTooltip;
+  final VoidCallback? onManage;
+  final String manageTooltip;
   final String refreshTooltip;
 
   @override
@@ -445,9 +427,9 @@ class _RuntimeHeader extends StatelessWidget {
                 ),
               ),
               _HeaderIconButton(
-                tooltip: permissionsTooltip,
-                icon: Icons.shield_outlined,
-                onPressed: onPermissions,
+                tooltip: manageTooltip,
+                icon: Icons.tune_rounded,
+                onPressed: onManage,
               ),
               const SizedBox(width: 8),
               _HeaderIconButton(

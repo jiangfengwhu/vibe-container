@@ -6,8 +6,9 @@ import '../models/installed_app.dart';
 import '../services/app_environment.dart';
 import 'theme.dart';
 
-class PermissionScreen extends StatelessWidget {
-  const PermissionScreen({
+/// 应用管理页：合并权限、沉浸模式与删除入口，替代旧的 PermissionScreen。
+class ManageScreen extends StatelessWidget {
+  const ManageScreen({
     required this.environment,
     required this.appId,
     super.key,
@@ -49,9 +50,6 @@ class PermissionScreen extends StatelessWidget {
           );
         }
         final permissions = app.manifest.permissions.toList();
-        final grantedCount = permissions
-            .where((p) => app.grantedPermissions[p] ?? false)
-            .length;
         return Scaffold(
           backgroundColor: WorkbenchPalette.cream,
           body: SafeArea(
@@ -60,44 +58,25 @@ class PermissionScreen extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.zero,
               children: <Widget>[
-                _PermissionHero(
-                  app: app,
-                  grantedCount: grantedCount,
-                  totalCount: permissions.length,
-                ),
+                _ManageHero(app: app),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 22, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(16, 22, 16, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      SoftCard(
-                        background: const Color(0xFFFFF7EE),
-                        border: const Color(0xFFEEDDC4),
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.tips_and_updates_outlined,
-                              size: 18,
-                              color: Color(0xFFC58A2E),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                l10n.permissionsIntro,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  height: 1.65,
-                                  color: WorkbenchPalette.inkSecondary,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _SectionHeader(
+                        eyebrow: l10n.immersiveSectionEyebrow,
+                        title: l10n.immersiveSectionTitle,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
+                      _ImmersiveSection(app: app, environment: environment),
+                      const SizedBox(height: 26),
+                      _SectionHeader(
+                        eyebrow: l10n.permissionSectionEyebrow,
+                        title: l10n.permissionSectionTitle,
+                        caption: l10n.permissionsIntro,
+                      ),
+                      const SizedBox(height: 12),
                       if (permissions.isEmpty)
                         SoftCard(
                           padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
@@ -151,6 +130,17 @@ class PermissionScreen extends StatelessWidget {
                             ),
                           );
                         }),
+                      const SizedBox(height: 26),
+                      _SectionHeader(
+                        eyebrow: l10n.dangerSectionEyebrow,
+                        title: l10n.dangerSectionTitle,
+                      ),
+                      const SizedBox(height: 12),
+                      _DeleteCard(
+                        app: app,
+                        onDeleted: () => Navigator.of(context).maybePop(),
+                        environment: environment,
+                      ),
                     ],
                   ),
                 ),
@@ -163,16 +153,10 @@ class PermissionScreen extends StatelessWidget {
   }
 }
 
-class _PermissionHero extends StatelessWidget {
-  const _PermissionHero({
-    required this.app,
-    required this.grantedCount,
-    required this.totalCount,
-  });
+class _ManageHero extends StatelessWidget {
+  const _ManageHero({required this.app});
 
   final InstalledApp app;
-  final int grantedCount;
-  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
@@ -234,9 +218,9 @@ class _PermissionHero extends StatelessWidget {
                       color: WorkbenchPalette.coral.withValues(alpha: 0.25),
                     ),
                   ),
-                  child: const Text(
-                    'PERMISSIONS',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.manageEyebrow,
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 2.4,
@@ -256,7 +240,7 @@ class _PermissionHero extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           Text(
-                            l10n.appPermissions(app.manifest.name),
+                            app.manifest.name,
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
@@ -267,13 +251,12 @@ class _PermissionHero extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            totalCount == 0
-                                ? '此应用没有声明运行时权限'
-                                : '已开启 $grantedCount / $totalCount  ·  v${app.manifest.version}',
+                            l10n.manageHeroSubtitle,
                             style: const TextStyle(
                               fontSize: 12.5,
                               color: WorkbenchPalette.inkSecondary,
                               letterSpacing: 0.2,
+                              height: 1.55,
                             ),
                           ),
                         ],
@@ -290,19 +273,248 @@ class _PermissionHero extends StatelessWidget {
   }
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.color, required this.size});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.eyebrow,
+    required this.title,
+    this.caption,
+  });
 
-  final Color color;
-  final double size;
+  final String eyebrow;
+  final String title;
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const DotDecor(),
+              const SizedBox(width: 8),
+              Text(
+                eyebrow,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.2,
+                  color: WorkbenchPalette.coralInk,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                  letterSpacing: 0.4,
+                  color: WorkbenchPalette.inkPrimary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Container(
+                  width: 22,
+                  height: 2,
+                  color: WorkbenchPalette.coral,
+                ),
+              ),
+            ],
+          ),
+          if (caption != null) ...<Widget>[
+            const SizedBox(height: 6),
+            Text(
+              caption!,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: WorkbenchPalette.inkSecondary,
+                letterSpacing: 0.2,
+                height: 1.55,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ImmersiveSection extends StatelessWidget {
+  const _ImmersiveSection({required this.app, required this.environment});
+
+  final InstalledApp app;
+  final AppEnvironment environment;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final effective = app.effectiveImmersive;
+    final overridden = app.immersiveOverride != null;
+    return SoftCard(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+      child: Column(
+        children: <Widget>[
+          _ImmersiveTile(
+            icon: Icons.expand_less_rounded,
+            color: const Color(0xFF7E9DB8),
+            title: l10n.immersiveTopLabel,
+            description: l10n.immersiveTopDescription,
+            value: effective.topInset,
+            onChanged: (value) =>
+                _update(effective.copyWith(topInset: value)),
+          ),
+          const Divider(indent: 18, endIndent: 18, height: 1),
+          _ImmersiveTile(
+            icon: Icons.expand_more_rounded,
+            color: const Color(0xFF94A878),
+            title: l10n.immersiveBottomLabel,
+            description: l10n.immersiveBottomDescription,
+            value: effective.bottomInset,
+            onChanged: (value) =>
+                _update(effective.copyWith(bottomInset: value)),
+          ),
+          const Divider(indent: 18, endIndent: 18, height: 1),
+          _ImmersiveTile(
+            icon: Icons.view_headline_rounded,
+            color: WorkbenchPalette.coral,
+            title: l10n.immersiveHeaderLabel,
+            description: l10n.immersiveHeaderDescription,
+            value: effective.showHeader,
+            onChanged: (value) =>
+                _update(effective.copyWith(showHeader: value)),
+          ),
+          if (overridden)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+              child: Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.bookmark_added_outlined,
+                    size: 14,
+                    color: WorkbenchPalette.inkSoft,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    l10n.immersiveOverridden,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: WorkbenchPalette.inkSoft,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () =>
+                        environment.library.clearImmersiveOverride(
+                          app.manifest.id,
+                        ),
+                    icon: const Icon(Icons.replay_rounded, size: 16),
+                    label: Text(l10n.immersiveResetDefault),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _update(AppImmersiveConfig next) {
+    return environment.library.setImmersive(app.manifest.id, next);
+  }
+}
+
+class _ImmersiveTile extends StatelessWidget {
+  const _ImmersiveTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String description;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 12, 6, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: WorkbenchPalette.inkPrimary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    height: 1.55,
+                    color: WorkbenchPalette.inkSecondary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: color,
+            inactiveTrackColor: WorkbenchPalette.creamDeep,
+            inactiveThumbColor: WorkbenchPalette.paper,
+            thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Icon(Icons.check_rounded, size: 16, color: color);
+              }
+              return const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: WorkbenchPalette.inkSoft,
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -447,5 +659,136 @@ class _PermissionCard extends StatelessWidget {
       default:
         return WorkbenchPalette.inkSecondary;
     }
+  }
+}
+
+class _DeleteCard extends StatelessWidget {
+  const _DeleteCard({
+    required this.app,
+    required this.environment,
+    required this.onDeleted,
+  });
+
+  final InstalledApp app;
+  final AppEnvironment environment;
+  final VoidCallback onDeleted;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SoftCard(
+      background: const Color(0xFFFFF1EE),
+      border: const Color(0xFFEFC9C2),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: WorkbenchPalette.coral.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: WorkbenchPalette.coral.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: WorkbenchPalette.coralInk,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      l10n.deleteAppButton,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: WorkbenchPalette.coralInk,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.deleteAppHint,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: WorkbenchPalette.inkSecondary,
+                        height: 1.55,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () => _confirmDelete(context),
+            icon: const Icon(Icons.delete_forever_rounded, size: 18),
+            label: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteAppTitle(app.manifest.name)),
+        content: Text(l10n.deleteAppBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await environment.storage.delete(app.manifest.id);
+    await environment.library.remove(app.manifest.id);
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.deleted(app.manifest.name))));
+    onDeleted();
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
   }
 }

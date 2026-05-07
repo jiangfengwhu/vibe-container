@@ -7,6 +7,7 @@ class InstalledApp {
     required this.importedAt,
     required this.grantedPermissions,
     this.lastUsedAt,
+    this.immersiveOverride,
   });
 
   final AppManifest manifest;
@@ -15,12 +16,22 @@ class InstalledApp {
   final DateTime? lastUsedAt;
   final Map<AppCapability, bool> grantedPermissions;
 
+  /// 用户在管理页里覆盖的沉浸式配置。`null` 表示沿用 manifest 默认。
+  final AppImmersiveConfig? immersiveOverride;
+
+  /// 当前生效的沉浸式配置：override > manifest。
+  AppImmersiveConfig get effectiveImmersive {
+    return immersiveOverride ?? manifest.immersive;
+  }
+
   InstalledApp copyWith({
     AppManifest? manifest,
     String? bundlePath,
     DateTime? importedAt,
     DateTime? lastUsedAt,
     Map<AppCapability, bool>? grantedPermissions,
+    AppImmersiveConfig? immersiveOverride,
+    bool clearImmersiveOverride = false,
   }) {
     return InstalledApp(
       manifest: manifest ?? this.manifest,
@@ -28,6 +39,9 @@ class InstalledApp {
       importedAt: importedAt ?? this.importedAt,
       lastUsedAt: lastUsedAt ?? this.lastUsedAt,
       grantedPermissions: grantedPermissions ?? this.grantedPermissions,
+      immersiveOverride: clearImmersiveOverride
+          ? null
+          : (immersiveOverride ?? this.immersiveOverride),
     );
   }
 
@@ -50,6 +64,12 @@ class InstalledApp {
       }
     }
 
+    final overrideJson = json['immersiveOverride'];
+    AppImmersiveConfig? override;
+    if (overrideJson != null) {
+      override = AppImmersiveConfig.fromJson(overrideJson);
+    }
+
     return InstalledApp(
       manifest: AppManifest.fromJson(manifestJson),
       bundlePath: _string(json, 'bundlePath'),
@@ -58,6 +78,7 @@ class InstalledApp {
           ? DateTime.parse(json['lastUsedAt']! as String)
           : null,
       grantedPermissions: granted,
+      immersiveOverride: override,
     );
   }
 
@@ -70,6 +91,7 @@ class InstalledApp {
       for (final entry in grantedPermissions.entries)
         entry.key.key: entry.value,
     },
+    'immersiveOverride': immersiveOverride?.toJson(),
   };
 
   bool hasPermission(AppCapability capability) {

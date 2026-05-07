@@ -82,13 +82,14 @@ Requires manifest declaration, user runtime authorization, HTTPS, and manifest h
 - `getCapabilities({})`
 - `getLocale({})`
 - `getTheme({})`
-- `getSafeArea({})`
 - `getLifecycleState({})`
+
+> Safe area is handled by the host via the manifest `immersive` block (see `app.json` schema). The host no longer exposes a runtime bridge for safe area or header visibility — they are decided declaratively.
 
 ### Native namespaces
 
 - `device`: `getInfo`, `getNetworkStatus`, `getBatteryStatus`
-- `ui`: `toast`, `alert`, `confirm`, `actionSheet`, `showLoading`, `hideLoading`, `setHeaderVisible`
+- `ui`: `toast`, `alert`, `confirm`, `actionSheet`, `showLoading`, `hideLoading`
 - `clipboard`: `readText`, `writeText`
 - `share`: `text`, `files`
 - `open`: `url`, `phone`, `email`, `map`, `settings`

@@ -205,7 +205,6 @@ class RuntimeBridge {
       'getCapabilities' ||
       'getLocale' ||
       'getTheme' ||
-      'getSafeArea' ||
       'getLifecycleState' => await _requiredNativeServices().appInfo(
         app,
         request.method,

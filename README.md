@@ -6,11 +6,11 @@ MVP 使用 Flutter 构建跨平台宿主壳。Web 运行时通过 `webview_flutt
 
 ## 已包含能力
 
-- 应用库：展示名称、图标、描述和上次使用时间，支持删除已安装应用。
+- 应用库：展示名称、图标、描述和上次使用时间。卡片左滑可揭示「管理」按钮，点击或滑到底部进入管理页（权限、删除、沉浸模式）。
 - 内置示例 bundle 导入：目前仅保留一个“城市应急巡检台”，用于验证 AppRuntime bridge 全量能力。
 - 远程导入：支持从 Cloudflare R2 下载并导入生成好的 `.iprod.zip` bundle。
-- WebView 运行页：支持顶部 header、加载错误展示和运行时桥接注入。
-- 沉浸式容器：底部保持沉浸式，顶部 header 默认可见；mini app 可通过 `AppRuntime.ui.setHeaderVisible(false)` 隐藏顶部 header，并用 `AppRuntime.app.getSafeArea()` 或 CSS safe-area 变量自行适配安全区。
+- WebView 运行页：默认全沉浸、不显示宿主 header，加载错误友好展示，运行时桥接随页面自动注入。
+- 沉浸式容器：通过 `app.json.immersive` 声明（`topInset` / `bottomInset` / `showHeader`），默认 `{topInset: false, bottomInset: false, showHeader: false}`。用户可以在每个 mini app 的「管理」页里覆盖默认值；mini app 自身用 CSS `env(safe-area-inset-*)` 适配。
 - 应用级权限管理：支持 `storage`、`notification`、`network`。
 - `app.json` manifest 解析与校验。
 - 按应用隔离的本地存储命名空间。
@@ -102,6 +102,10 @@ index.html/main.html # 必需，实际路径由 app.json 的 entry 指定
 - `permissions` 可包含 `storage`、`secureStorage`、`notification`、`network`、`device`、`ui`、`clipboard`、`share`、`open`、`file`、`media`、`location`、`haptics`、`barcode`、`audio`、`biometric`、`contacts`、`calendar`、`download`、`events`。
 - `networkAllowlist` 只约束 `AppRuntime.network.fetch`，只能包含 host name，且必须同时声明 `network` 权限。
 - `signature` 是为未来 bundle 签名预留的字段。
+- `immersive` 是可选对象，三个布尔字段均默认为 `false`：
+  - `topInset`：宿主是否在顶部为状态栏让出 SafeArea。`false` 表示 mini app 铺到状态栏背后，需要自己用 CSS `env(safe-area-inset-top)` 避让。
+  - `bottomInset`：宿主是否为底部 home 指示器让出 SafeArea。`false` 表示 mini app 铺到底部手势条背后。
+  - `showHeader`：宿主是否在 mini app 顶上叠一条返回 / 刷新 / 管理的 chrome 顶栏。`false` 表示完全沉浸。
 - bundle 校验不会拦截远程 `<script>`、CSS、图片、字体或其他 Web 资源；AI 生成的 bundle 可以按普通 Web 页面方式引用 CDN。
 
 ## 添加内置示例 Bundle

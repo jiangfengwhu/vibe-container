@@ -63,6 +63,27 @@ class WorkbenchLocalizations {
   String get permissionsTitle => _text('permissionsTitle');
   String get permissionsIntro => _text('permissionsIntro');
   String get noRuntimePermissions => _text('noRuntimePermissions');
+  String get manageTitle => _text('manageTitle');
+  String get manageEyebrow => _text('manageEyebrow');
+  String get manageHeroSubtitle => _text('manageHeroSubtitle');
+  String get permissionSectionTitle => _text('permissionSectionTitle');
+  String get permissionSectionEyebrow => _text('permissionSectionEyebrow');
+  String get immersiveSectionTitle => _text('immersiveSectionTitle');
+  String get immersiveSectionEyebrow => _text('immersiveSectionEyebrow');
+  String get immersiveTopLabel => _text('immersiveTopLabel');
+  String get immersiveTopDescription => _text('immersiveTopDescription');
+  String get immersiveBottomLabel => _text('immersiveBottomLabel');
+  String get immersiveBottomDescription => _text('immersiveBottomDescription');
+  String get immersiveHeaderLabel => _text('immersiveHeaderLabel');
+  String get immersiveHeaderDescription => _text('immersiveHeaderDescription');
+  String get immersiveResetDefault => _text('immersiveResetDefault');
+  String get immersiveOverridden => _text('immersiveOverridden');
+  String get dangerSectionTitle => _text('dangerSectionTitle');
+  String get dangerSectionEyebrow => _text('dangerSectionEyebrow');
+  String get deleteAppButton => _text('deleteAppButton');
+  String get deleteAppHint => _text('deleteAppHint');
+  String get swipeToManageHint => _text('swipeToManageHint');
+  String get manageAction => _text('manageAction');
 
   String lastUsed(String date) {
     return _format(_text('lastUsed'), <String, String>{'date': date});
@@ -213,7 +234,7 @@ class _WorkbenchLocalizationsDelegate
 
 const _localizedValues = <String, Map<String, String>>{
   'zh': <String, String>{
-    'appTitle': '本地应用工作台',
+    'appTitle': '拾趣',
     'importTooltip': '导入',
     'permissionsTooltip': '权限',
     'refreshTooltip': '刷新',
@@ -251,6 +272,27 @@ const _localizedValues = <String, Map<String, String>>{
     'appPermissions': '{app} 权限',
     'permissionsIntro': '权限由 app.json 声明，可随时关闭。关闭后的能力会被运行时桥接拒绝。',
     'noRuntimePermissions': '此应用没有声明运行时权限。',
+    'manageTitle': '管理',
+    'manageEyebrow': 'MANAGE  ·  这只小工具',
+    'manageHeroSubtitle': '调整权限、沉浸模式，或者把它温柔地送走。',
+    'permissionSectionTitle': '权限开关',
+    'permissionSectionEyebrow': 'PERMISSIONS',
+    'immersiveSectionTitle': '沉浸模式',
+    'immersiveSectionEyebrow': 'IMMERSIVE',
+    'immersiveTopLabel': '顶部留出状态栏',
+    'immersiveTopDescription': '关闭后，mini app 会铺到状态栏背后，请用 CSS env(safe-area-inset-top) 自行避让。',
+    'immersiveBottomLabel': '底部留出 home 指示器',
+    'immersiveBottomDescription': '关闭后，mini app 会铺到底部手势条背后，请用 CSS env(safe-area-inset-bottom) 自行避让。',
+    'immersiveHeaderLabel': '显示宿主顶栏',
+    'immersiveHeaderDescription': '打开后会在 mini app 上方加一条返回 / 刷新 / 管理的 chrome 顶栏。',
+    'immersiveResetDefault': '恢复 manifest 默认',
+    'immersiveOverridden': '当前为自定义覆盖',
+    'dangerSectionTitle': '危险操作',
+    'dangerSectionEyebrow': 'DANGER',
+    'deleteAppButton': '删除这只小工具',
+    'deleteAppHint': '会移除应用、本地 bundle 与隔离存储。',
+    'swipeToManageHint': '左滑卡片可以管理',
+    'manageAction': '管理',
     'permissionRequestTitle': '{app} 请求使用{capability}',
     'capabilityStorage': '存储',
     'capabilitySecureStorage': '安全存储',
@@ -314,7 +356,7 @@ const _localizedValues = <String, Map<String, String>>{
     'permissionReasonEvents': '允许 Web 应用监听宿主运行时事件。',
   },
   'en': <String, String>{
-    'appTitle': 'Local App Workbench',
+    'appTitle': 'Curio',
     'importTooltip': 'Import',
     'permissionsTooltip': 'Permissions',
     'refreshTooltip': 'Refresh',
@@ -355,6 +397,32 @@ const _localizedValues = <String, Map<String, String>>{
     'permissionsIntro':
         'Permissions are declared by app.json and can be disabled at any time. Disabled capabilities are rejected by the runtime bridge.',
     'noRuntimePermissions': 'This app declares no runtime permissions.',
+    'manageTitle': 'Manage',
+    'manageEyebrow': 'MANAGE  ·  THIS LITTLE TOOL',
+    'manageHeroSubtitle':
+        'Tune permissions, immersive mode, or quietly send it away.',
+    'permissionSectionTitle': 'Permissions',
+    'permissionSectionEyebrow': 'PERMISSIONS',
+    'immersiveSectionTitle': 'Immersive mode',
+    'immersiveSectionEyebrow': 'IMMERSIVE',
+    'immersiveTopLabel': 'Reserve top status bar',
+    'immersiveTopDescription':
+        'When off, the mini app extends behind the status bar. Use CSS env(safe-area-inset-top) to adapt.',
+    'immersiveBottomLabel': 'Reserve bottom home indicator',
+    'immersiveBottomDescription':
+        'When off, the mini app extends behind the bottom gesture bar. Use CSS env(safe-area-inset-bottom) to adapt.',
+    'immersiveHeaderLabel': 'Show host header',
+    'immersiveHeaderDescription':
+        'When on, a back / refresh / manage chrome header is shown above the mini app.',
+    'immersiveResetDefault': 'Reset to manifest default',
+    'immersiveOverridden': 'Currently overridden',
+    'dangerSectionTitle': 'Danger zone',
+    'dangerSectionEyebrow': 'DANGER',
+    'deleteAppButton': 'Delete this little tool',
+    'deleteAppHint':
+        'Removes the app, its local bundle, and its isolated storage.',
+    'swipeToManageHint': 'Swipe a card left to manage',
+    'manageAction': 'Manage',
     'permissionRequestTitle': '{app} requests {capability}',
     'capabilityStorage': 'Storage',
     'capabilitySecureStorage': 'Secure storage',

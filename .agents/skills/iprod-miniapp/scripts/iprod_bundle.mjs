@@ -180,6 +180,16 @@ function validateManifest(manifest) {
   if (Number.isNaN(Date.parse(manifest.createdAt))) {
     throw new Error('createdAt must be ISO-8601');
   }
+  if (manifest.immersive !== undefined && manifest.immersive !== null) {
+    if (typeof manifest.immersive !== 'object' || Array.isArray(manifest.immersive)) {
+      throw new Error('immersive must be an object');
+    }
+    for (const key of ['topInset', 'bottomInset', 'showHeader']) {
+      if (manifest.immersive[key] !== undefined && typeof manifest.immersive[key] !== 'boolean') {
+        throw new Error(`immersive.${key} must be a boolean`);
+      }
+    }
+  }
 }
 
 function detectBridgeUsage(source) {
@@ -204,7 +214,12 @@ function defaultManifest({ id, name, description, icon, permissions }) {
     createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     runtimeVersion: '1.0',
     networkAllowlist: [],
-    signature: null
+    signature: null,
+    immersive: {
+      topInset: false,
+      bottomInset: false,
+      showHeader: false
+    }
   };
 }
 

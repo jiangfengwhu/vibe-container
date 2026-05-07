@@ -31,7 +31,7 @@ The zip root must contain `app.json`, not an extra wrapper folder.
 2. Implement the app as a standalone web bundle. Local files and remote CDN resources are both allowed; if you use a build tool, include the generated files in the bundle.
    - The host loads the HTML path from `app.json.entry`.
    - CSS, JS, images, and assets are optional; keep local relative links correct inside the entry HTML.
-3. Design for the host runtime chrome. The top header is visible by default and the bottom remains immersive; call `AppRuntime.ui.setHeaderVisible(false)` only when the app intentionally wants a fully immersive top edge. When the header is hidden, handle top safe area inside the mini app with CSS `env(safe-area-inset-top)` and/or `AppRuntime.app.getSafeArea()`.
+3. Design for the host runtime chrome. The host defaults to fully immersive: no chrome header, no top/bottom safe area padding. Declare what you need in `app.json.immersive` (`topInset`, `bottomInset`, `showHeader`); each defaults to `false`. The user can later override these per app from the Manage screen. When you opt out of insets, handle the safe area in CSS via `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)`.
 4. Use `window.AppRuntime` for all host capabilities. Do not call native channels directly.
 5. Keep data local-first. Use `AppRuntime.storage` for persistence.
 6. Request only the permissions that are truly needed in `app.json`.
@@ -70,6 +70,7 @@ node scripts/upload_bundle.mjs dist/<slug>.iprod.zip --key <slug>.iprod.zip
 - `runtimeVersion`: `1.0`
 - `networkAllowlist`: host names only
 - `signature`: `null` for MVP
+- `immersive` (optional): object `{ topInset?: bool, bottomInset?: bool, showHeader?: bool }`. Each field defaults to `false`. Set `topInset`/`bottomInset` to `true` only if the mini app cannot itself adapt to the status bar / home indicator; set `showHeader` to `true` if you want the host to render its back / refresh / manage chrome bar.
 
 If the app calls:
 

@@ -132,7 +132,6 @@ class BridgeRequest {
       'getCapabilities',
       'getLocale',
       'getTheme',
-      'getSafeArea',
       'getLifecycleState',
     },
     BridgeNamespace.device: <String>{
@@ -147,7 +146,6 @@ class BridgeRequest {
       'actionSheet',
       'showLoading',
       'hideLoading',
-      'setHeaderVisible',
     },
     BridgeNamespace.clipboard: <String>{'readText', 'writeText'},
     BridgeNamespace.share: <String>{'text', 'files'},

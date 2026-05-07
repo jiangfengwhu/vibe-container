@@ -79,7 +79,6 @@
         capabilities: await AppRuntime.app.getCapabilities(),
         locale: await AppRuntime.app.getLocale(),
         theme: await AppRuntime.app.getTheme(),
-        safeArea: await AppRuntime.app.getSafeArea(),
         lifecycle: await AppRuntime.app.getLifecycleState()
       };
       elements.runtimeStatus.textContent = '运行时 ' + (result.manifest.runtimeVersion || AppRuntime.runtimeVersion || '1.0');
@@ -142,9 +141,6 @@
       const action = await AppRuntime.ui.actionSheet({
         options: ['设为高优先级', '请求支援', '记录为观察', '取消']
       });
-      await AppRuntime.ui.setHeaderVisible(false);
-      await delay(700);
-      await AppRuntime.ui.setHeaderVisible(true);
       return { confirm: confirm, actionSheet: action };
     },
 

@@ -5,7 +5,7 @@ import '../models/app_manifest.dart';
 import '../models/installed_app.dart';
 import '../services/app_environment.dart';
 import 'import_screen.dart';
-import 'permission_screen.dart';
+import 'manage_screen.dart';
 import 'runtime_screen.dart';
 import 'theme.dart';
 
@@ -67,9 +67,9 @@ class HomeScreen extends StatelessWidget {
               slivers: <Widget>[
                 SliverToBoxAdapter(
                   child: HeroBanner(
-                    eyebrow: 'YOUR  WORKBENCH',
-                    title: l10n.appTitle,
-                    subtitle: '把 AI 生成的小工具，温柔收进口袋。\n慢慢用，慢慢搭，像写日记一样。',
+                    eyebrow: '${l10n.appTitle}  ·  CURIO',
+                    title: '把好玩的小工具，\n一件件拾回家。',
+                    subtitle: 'AI 生成的迷你应用，慢慢用，慢慢搭。',
                     trailing: _ImportFab(onTap: () => _openImport(context)),
                     contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                   ),
@@ -97,16 +97,41 @@ class HomeScreen extends StatelessWidget {
                     sliver: SliverList.separated(
                       itemBuilder: (context, index) {
                         final app = apps[index];
-                        return _AppTile(
+                        return _SwipeableAppTile(
+                          key: ValueKey<String>(app.manifest.id),
                           app: app,
                           gradient: _gradientFor(app.manifest.id),
                           onOpen: () => _openApp(context, app),
-                          onPermissions: () => _openPermissions(context, app),
-                          onDelete: () => _deleteApp(context, app),
+                          onManage: () => _openManage(context, app),
                         );
                       },
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
                       itemCount: apps.length,
+                    ),
+                  ),
+                if (apps.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.swipe_left_rounded,
+                            size: 14,
+                            color: WorkbenchPalette.inkSoft,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.swipeToManageHint,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: WorkbenchPalette.inkSoft,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -138,45 +163,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openPermissions(BuildContext context, InstalledApp app) async {
+  Future<void> _openManage(BuildContext context, InstalledApp app) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>
-            PermissionScreen(environment: environment, appId: app.manifest.id),
+            ManageScreen(environment: environment, appId: app.manifest.id),
       ),
     );
-  }
-
-  Future<void> _deleteApp(BuildContext context, InstalledApp app) async {
-    final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteAppTitle(app.manifest.name)),
-        content: Text(l10n.deleteAppBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) {
-      return;
-    }
-    await environment.storage.delete(app.manifest.id);
-    await environment.library.remove(app.manifest.id);
-    if (!context.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.deleted(app.manifest.name))));
   }
 }
 
@@ -401,20 +394,200 @@ class _EmptyLibrary extends StatelessWidget {
   }
 }
 
-class _AppTile extends StatelessWidget {
-  const _AppTile({
+/// 左滑卡片：拖动时显示底部「管理」按钮；松手后若超过阈值则进入管理页，否则吸附到展开/收起。
+class _SwipeableAppTile extends StatefulWidget {
+  const _SwipeableAppTile({
     required this.app,
     required this.gradient,
     required this.onOpen,
-    required this.onPermissions,
-    required this.onDelete,
+    required this.onManage,
+    super.key,
   });
 
   final InstalledApp app;
   final LinearGradient gradient;
   final VoidCallback onOpen;
-  final VoidCallback onPermissions;
-  final VoidCallback onDelete;
+  final VoidCallback onManage;
+
+  @override
+  State<_SwipeableAppTile> createState() => _SwipeableAppTileState();
+}
+
+class _SwipeableAppTileState extends State<_SwipeableAppTile>
+    with SingleTickerProviderStateMixin {
+  static const double _revealWidth = 96;
+  static const double _autoTriggerDistance = 168;
+  static const double _maxOvershoot = 48;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  late Animation<double> _animation = AlwaysStoppedAnimation<double>(0);
+  double _drag = 0;
+  bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      setState(() => _drag = _animation.value);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_controller.isAnimating) {
+      _controller.stop();
+    }
+    setState(() {
+      _drag = (_drag - details.delta.dx).clamp(
+        0.0,
+        _autoTriggerDistance + _maxOvershoot,
+      );
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (_drag >= _autoTriggerDistance) {
+      _animateTo(0, opening: false);
+      widget.onManage();
+      return;
+    }
+    if (_drag >= _revealWidth * 0.55) {
+      _animateTo(_revealWidth, opening: true);
+    } else {
+      _animateTo(0, opening: false);
+    }
+  }
+
+  void _animateTo(double target, {required bool opening}) {
+    _open = opening;
+    _animation = Tween<double>(
+      begin: _drag,
+      end: target,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller
+      ..reset()
+      ..forward();
+  }
+
+  void _close() {
+    if (_open || _drag > 0) {
+      _animateTo(0, opening: false);
+    }
+  }
+
+  void _handleTap() {
+    if (_open) {
+      _close();
+      widget.onManage();
+    } else {
+      widget.onOpen();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: _onPanUpdate,
+      onHorizontalDragEnd: _onPanEnd,
+      onTap: _handleTap,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: _ManageRevealLayer(
+              progress: (_drag / _autoTriggerDistance).clamp(0.0, 1.0),
+              onTap: () {
+                _close();
+                widget.onManage();
+              },
+            ),
+          ),
+          Transform.translate(
+            offset: Offset(-_drag, 0),
+            child: _AppTileBody(app: widget.app, gradient: widget.gradient),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManageRevealLayer extends StatelessWidget {
+  const _ManageRevealLayer({required this.progress, required this.onTap});
+
+  /// 0 -> 完全收起，1 -> 已经达到自动触发阈值。
+  final double progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (progress <= 0.001) {
+      return const SizedBox.shrink();
+    }
+    final triggered = progress >= 1.0;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0),
+        child: Container(
+          width: 96 + (progress * 24),
+          margin: const EdgeInsets.only(left: 12),
+          decoration: BoxDecoration(
+            gradient: WorkbenchPalette.coralGradient,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: WorkbenchPalette.tinyShadow,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(22),
+              onTap: onTap,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      triggered
+                          ? Icons.arrow_forward_rounded
+                          : Icons.tune_rounded,
+                      size: 22,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.manageAction,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppTileBody extends StatelessWidget {
+  const _AppTileBody({required this.app, required this.gradient});
+
+  final InstalledApp app;
+  final LinearGradient gradient;
 
   @override
   Widget build(BuildContext context) {
@@ -426,8 +599,7 @@ class _AppTile extends StatelessWidget {
     final permissions = manifest.permissions.toList();
 
     return SoftCard(
-      onTap: onOpen,
-      padding: const EdgeInsets.fromLTRB(16, 16, 12, 14),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -493,22 +665,6 @@ class _AppTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Column(
-                children: <Widget>[
-                  _GhostIconButton(
-                    tooltip: l10n.permissionsTooltip,
-                    icon: Icons.shield_outlined,
-                    onPressed: onPermissions,
-                  ),
-                  const SizedBox(height: 6),
-                  _GhostIconButton(
-                    tooltip: l10n.delete,
-                    icon: Icons.delete_outline_rounded,
-                    onPressed: onDelete,
-                    color: WorkbenchPalette.coralInk,
-                  ),
-                ],
-              ),
             ],
           ),
           if (permissions.isNotEmpty) ...<Widget>[
@@ -565,44 +721,5 @@ class _AppTile extends StatelessWidget {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '${value.year}-$month-$day $hour:$minute';
-  }
-}
-
-class _GhostIconButton extends StatelessWidget {
-  const _GhostIconButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-    this.color = WorkbenchPalette.inkSecondary,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: WorkbenchPalette.cream,
-              shape: BoxShape.circle,
-              border: Border.all(color: WorkbenchPalette.sand),
-            ),
-            child: Icon(icon, size: 17, color: color),
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -105,6 +105,22 @@ class AppLibrary extends ChangeNotifier {
     );
   }
 
+  Future<void> setImmersive(String appId, AppImmersiveConfig override) async {
+    final app = findById(appId);
+    if (app == null) {
+      return;
+    }
+    await upsert(app.copyWith(immersiveOverride: override));
+  }
+
+  Future<void> clearImmersiveOverride(String appId) async {
+    final app = findById(appId);
+    if (app == null) {
+      return;
+    }
+    await upsert(app.copyWith(clearImmersiveOverride: true));
+  }
+
   Future<void> _save() async {
     await rootDirectory.create(recursive: true);
     await _indexFile.writeAsString(

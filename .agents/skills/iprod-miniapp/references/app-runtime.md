@@ -47,7 +47,6 @@ declare global {
         getCapabilities(): Promise<Record<string, unknown>>;
         getLocale(): Promise<Record<string, unknown>>;
         getTheme(): Promise<Record<string, unknown>>;
-        getSafeArea(): Promise<Record<string, unknown>>;
         getLifecycleState(): Promise<Record<string, unknown>>;
       };
       device: {
@@ -62,7 +61,6 @@ declare global {
         actionSheet(options: { options: string[] }): Promise<{ selectedIndex?: number; selected?: string }>;
         showLoading(options?: { message?: string }): Promise<{ ok: true }>;
         hideLoading(): Promise<{ ok: true }>;
-        setHeaderVisible(visible: boolean): Promise<{ visible: boolean }>;
       };
       clipboard: {
         readText(): Promise<{ text?: string }>;
@@ -107,3 +105,15 @@ Errors reject the Promise with:
 ```
 
 Prefer small JSON-safe values in storage. Use arrays and objects, not class instances, functions, Dates, Maps, Sets, or binary blobs.
+
+Safe area / header are no longer runtime-controllable. Declare what you need in `app.json.immersive`:
+
+```json
+"immersive": {
+  "topInset": false,
+  "bottomInset": false,
+  "showHeader": false
+}
+```
+
+All three default to `false` (full immersion, no host chrome). Use CSS `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` inside the mini app to handle the status bar and home indicator. The user can override these per app from the host's Manage screen.

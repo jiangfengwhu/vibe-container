@@ -34,7 +34,6 @@ import 'notification_service.dart';
 typedef RuntimeContextProvider = BuildContext Function();
 typedef RuntimeEventEmitter =
     Future<void> Function(String type, Map<String, Object?> payload);
-typedef RuntimeHeaderVisibilitySetter = Future<void> Function(bool visible);
 
 class NativeBridgeServices {
   NativeBridgeServices({
@@ -42,7 +41,6 @@ class NativeBridgeServices {
     required this.notifications,
     required this.contextProvider,
     required this.emitEvent,
-    required this.setHeaderVisible,
     http.Client? httpClient,
     FlutterSecureStorage? secureStorage,
     AudioRecorder? recorder,
@@ -56,7 +54,6 @@ class NativeBridgeServices {
   final NotificationService notifications;
   final RuntimeContextProvider contextProvider;
   final RuntimeEventEmitter emitEvent;
-  final RuntimeHeaderVisibilitySetter setHeaderVisible;
   final http.Client _httpClient;
   final FlutterSecureStorage _secureStorage;
   final AudioRecorder _recorder;
@@ -116,7 +113,6 @@ class NativeBridgeServices {
       'getTheme' => <String, Object?>{
         'brightness': Theme.of(contextProvider()).brightness.name,
       },
-      'getSafeArea' => _safeArea(),
       'getLifecycleState' => <String, Object?>{
         'state': WidgetsBinding.instance.lifecycleState?.name ?? 'detached',
       },
@@ -124,16 +120,6 @@ class NativeBridgeServices {
         BridgeErrorCode.invalidParams,
         'unsupported app method',
       ),
-    };
-  }
-
-  Map<String, Object?> _safeArea() {
-    final padding = MediaQuery.paddingOf(contextProvider());
-    return <String, Object?>{
-      'top': padding.top,
-      'right': padding.right,
-      'bottom': padding.bottom,
-      'left': padding.left,
     };
   }
 
@@ -232,7 +218,6 @@ class NativeBridgeServices {
       'actionSheet' => _actionSheet(request),
       'showLoading' => _showLoading(request),
       'hideLoading' => _hideLoading(),
-      'setHeaderVisible' => _setHeaderVisible(request),
       _ => throw const BridgeException(
         BridgeErrorCode.invalidParams,
         'unsupported ui method',
@@ -344,18 +329,6 @@ class NativeBridgeServices {
       _loadingVisible = false;
     }
     return _ok();
-  }
-
-  Future<Map<String, Object?>> _setHeaderVisible(BridgeRequest request) async {
-    final visible = request.params['visible'];
-    if (visible is! bool) {
-      throw const BridgeException(
-        BridgeErrorCode.invalidParams,
-        'visible must be a boolean',
-      );
-    }
-    await setHeaderVisible(visible);
-    return <String, Object?>{'visible': visible};
   }
 
   Future<Object?> _handleClipboard(BridgeRequest request) async {

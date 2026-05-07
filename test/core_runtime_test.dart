@@ -54,6 +54,43 @@ void main() {
       );
     });
 
+    test('immersive defaults to fully immersive when omitted', () {
+      final manifest = AppManifest.fromJson(_manifestJson());
+      expect(manifest.immersive.topInset, isFalse);
+      expect(manifest.immersive.bottomInset, isFalse);
+      expect(manifest.immersive.showHeader, isFalse);
+    });
+
+    test('parses immersive config when present', () {
+      final manifest = AppManifest.fromJson(
+        _manifestJson(
+          extra: <String, Object?>{
+            'immersive': <String, Object?>{
+              'topInset': true,
+              'bottomInset': false,
+              'showHeader': true,
+            },
+          },
+        ),
+      );
+      expect(manifest.immersive.topInset, isTrue);
+      expect(manifest.immersive.bottomInset, isFalse);
+      expect(manifest.immersive.showHeader, isTrue);
+    });
+
+    test('rejects malformed immersive payload', () {
+      expect(
+        () => AppManifest.fromJson(
+          _manifestJson(
+            extra: <String, Object?>{
+              'immersive': <String, Object?>{'topInset': 'yes'},
+            },
+          ),
+        ),
+        throwsA(isA<ManifestException>()),
+      );
+    });
+
     test('parses native runtime permissions', () {
       final manifest = AppManifest.fromJson(
         _manifestJson(
@@ -127,17 +164,30 @@ void main() {
       expect(request.method, 'getInfo');
     });
 
-    test('accepts header visibility bridge method', () {
-      final request = BridgeRequest.fromJson(<String, Object?>{
-        'requestId': '1',
-        'appId': 'local.bookkeeping',
-        'namespace': 'ui',
-        'method': 'setHeaderVisible',
-        'params': <String, Object?>{'visible': false},
-      });
+    test('rejects removed header visibility bridge method', () {
+      expect(
+        () => BridgeRequest.fromJson(<String, Object?>{
+          'requestId': '1',
+          'appId': 'local.bookkeeping',
+          'namespace': 'ui',
+          'method': 'setHeaderVisible',
+          'params': <String, Object?>{'visible': false},
+        }),
+        throwsA(isA<BridgeException>()),
+      );
+    });
 
-      expect(request.namespace, BridgeNamespace.ui);
-      expect(request.method, 'setHeaderVisible');
+    test('rejects removed safe area bridge method', () {
+      expect(
+        () => BridgeRequest.fromJson(<String, Object?>{
+          'requestId': '1',
+          'appId': 'local.bookkeeping',
+          'namespace': 'app',
+          'method': 'getSafeArea',
+          'params': <String, Object?>{},
+        }),
+        throwsA(isA<BridgeException>()),
+      );
     });
   });
 
@@ -201,6 +251,35 @@ void main() {
 
       expect(library.findById(app.manifest.id), isNull);
       expect(bundleDirectory.existsSync(), isFalse);
+    });
+
+    test('persists and clears immersive override', () async {
+      final library = AppLibrary(Directory('${tempDir.path}/library'));
+      final app = _installedApp(
+        grantedPermissions: <AppCapability, bool>{},
+      );
+      await library.load();
+      await library.upsert(app);
+
+      await library.setImmersive(
+        app.manifest.id,
+        const AppImmersiveConfig(
+          topInset: true,
+          bottomInset: false,
+          showHeader: true,
+        ),
+      );
+
+      final after = library.findById(app.manifest.id)!;
+      expect(after.immersiveOverride?.topInset, isTrue);
+      expect(after.immersiveOverride?.showHeader, isTrue);
+      expect(after.effectiveImmersive.topInset, isTrue);
+      expect(after.effectiveImmersive.bottomInset, isFalse);
+
+      await library.clearImmersiveOverride(app.manifest.id);
+      final cleared = library.findById(app.manifest.id)!;
+      expect(cleared.immersiveOverride, isNull);
+      expect(cleared.effectiveImmersive, AppImmersiveConfig.defaults);
     });
   });
 
@@ -429,6 +508,7 @@ Map<String, Object?> _manifestJson({
   String entry = 'index.html',
   List<String> permissions = const <String>['storage'],
   List<String> networkAllowlist = const <String>[],
+  Map<String, Object?>? extra,
 }) {
   return <String, Object?>{
     'id': 'local.bookkeeping',
@@ -442,6 +522,7 @@ Map<String, Object?> _manifestJson({
     'runtimeVersion': '1.0',
     'networkAllowlist': networkAllowlist,
     'signature': null,
+    if (extra != null) ...extra,
   };
 }
 

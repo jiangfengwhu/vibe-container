@@ -187,9 +187,6 @@
       getTheme: function () {
         return post('app', 'getTheme', {});
       },
-      getSafeArea: function () {
-        return post('app', 'getSafeArea', {});
-      },
       getLifecycleState: function () {
         return post('app', 'getLifecycleState', {});
       }
@@ -212,9 +209,6 @@
       },
       hideLoading: function () {
         return post('ui', 'hideLoading', {});
-      },
-      setHeaderVisible: function (visible) {
-        return post('ui', 'setHeaderVisible', { visible: !!visible });
       }
     }),
     clipboard: Object.freeze({
