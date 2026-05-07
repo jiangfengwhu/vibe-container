@@ -6,10 +6,11 @@ MVP 使用 Flutter 构建跨平台宿主壳。Web 运行时通过 `webview_flutt
 
 ## 已包含能力
 
-- 应用库：展示名称、图标、描述和上次使用时间。
+- 应用库：展示名称、图标、描述和上次使用时间，支持删除已安装应用。
 - 内置示例 bundle 导入：目前仅保留一个“城市应急巡检台”，用于验证 AppRuntime bridge 全量能力。
-- 文件导入：支持导入生成好的 `.iprod.zip` bundle。
-- WebView 运行页：支持返回、刷新、加载错误展示和运行时桥接注入。
+- 远程导入：支持从 Cloudflare R2 下载并导入生成好的 `.iprod.zip` bundle。
+- WebView 运行页：支持顶部 header、加载错误展示和运行时桥接注入。
+- 沉浸式容器：底部保持沉浸式，顶部 header 默认可见；mini app 可通过 `AppRuntime.ui.setHeaderVisible(false)` 隐藏顶部 header，并用 `AppRuntime.app.getSafeArea()` 或 CSS safe-area 变量自行适配安全区。
 - 应用级权限管理：支持 `storage`、`notification`、`network`。
 - `app.json` manifest 解析与校验。
 - 按应用隔离的本地存储命名空间。
@@ -132,6 +133,7 @@ index.html/main.html # 必需，实际路径由 app.json 的 entry 指定
 ```bash
 node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs validate generated-bundles/<slug>
 node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.iprod.zip
+node .agents/skills/iprod-miniapp/scripts/upload_bundle.mjs dist/<slug>.iprod.zip --key <slug>.iprod.zip
 ```
 
 也可以手动创建一个起始 bundle：
@@ -142,7 +144,9 @@ node tooling/bundle-kit/iprod_bundle.mjs validate generated-bundles/todo
 node tooling/bundle-kit/iprod_bundle.mjs pack generated-bundles/todo --out dist/todo.iprod.zip
 ```
 
-项目开发时可以继续使用 `tooling/bundle-kit/iprod_bundle.mjs`；打包后的 skill 会自带 `scripts/iprod_bundle.mjs`，方便在其他 agent 平台独立校验和打包 bundle。
+项目开发时可以继续使用 `tooling/bundle-kit/iprod_bundle.mjs`；打包后的 skill 会自带 `scripts/iprod_bundle.mjs` 和 `scripts/upload_bundle.mjs`，方便在其他 agent 平台独立校验、打包并上传 bundle。
+
+`upload_bundle.mjs` 默认上传到 `https://infra.308893.xyz/api/r2/objects/<key>`，使用 `X-Sanyi-INFRA: sanyi`。成功后会输出可在宿主导入页使用的 `downloadUrl`。宿主应用的“从 Cloudflare 下载”入口同时接受对象 key（例如 `<slug>.iprod.zip`）或完整下载 URL。
 
 ## 打包 Agent Skill
 
@@ -156,8 +160,8 @@ node tooling/skill-kit/package_skill.mjs .agents/skills/iprod-miniapp dist/iprod
 
 1. 在设备或模拟器上运行 Flutter 宿主应用。
 2. 打开“导入应用 bundle”。
-3. 点击“选择 .iprod.zip”。
-4. 选择打包好的文件。
+3. 在“从 Cloudflare 下载”中输入上传脚本返回的对象 key 或 `downloadUrl`。
+4. 点击“下载并导入”。
 5. 从应用库中打开已导入的 mini app。
 
 ## 运行时桥接

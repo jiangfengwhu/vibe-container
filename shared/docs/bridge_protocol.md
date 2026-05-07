@@ -88,7 +88,7 @@ Requires manifest declaration, user runtime authorization, HTTPS, and manifest h
 ### Native namespaces
 
 - `device`: `getInfo`, `getNetworkStatus`, `getBatteryStatus`
-- `ui`: `toast`, `alert`, `confirm`, `actionSheet`, `showLoading`, `hideLoading`
+- `ui`: `toast`, `alert`, `confirm`, `actionSheet`, `showLoading`, `hideLoading`, `setHeaderVisible`
 - `clipboard`: `readText`, `writeText`
 - `share`: `text`, `files`
 - `open`: `url`, `phone`, `email`, `map`, `settings`

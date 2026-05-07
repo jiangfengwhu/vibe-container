@@ -212,6 +212,9 @@
       },
       hideLoading: function () {
         return post('ui', 'hideLoading', {});
+      },
+      setHeaderVisible: function (visible) {
+        return post('ui', 'setHeaderVisible', { visible: !!visible });
       }
     }),
     clipboard: Object.freeze({

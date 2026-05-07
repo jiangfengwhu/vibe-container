@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../bridge/bridge_error.dart';
@@ -14,6 +15,7 @@ import '../services/app_environment.dart';
 import '../services/native_bridge_services.dart';
 import '../webview/web_app_document_builder.dart';
 import 'permission_screen.dart';
+import 'theme.dart';
 
 class RuntimeScreen extends StatefulWidget {
   const RuntimeScreen({
@@ -38,16 +40,19 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   String? _error;
   bool _loading = true;
   bool _didLoad = false;
+  bool _headerVisible = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _enterImmersiveMode();
     _nativeServices = NativeBridgeServices(
       rootDirectory: widget.environment.rootDirectory,
       notifications: widget.environment.notifications,
       contextProvider: () => context,
       emitEvent: _emitRuntimeEvent,
+      setHeaderVisible: _setHeaderVisible,
     );
     _bridge = RuntimeBridge(
       currentApp: _currentApp,
@@ -59,7 +64,10 @@ class _RuntimeScreenState extends State<RuntimeScreen>
     );
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF6F7F4))
+      ..setBackgroundColor(WorkbenchPalette.cream)
+      ..enableZoom(false)
+      ..setVerticalScrollBarEnabled(false)
+      ..setHorizontalScrollBarEnabled(false)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
@@ -100,6 +108,7 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _exitImmersiveMode();
     super.dispose();
   }
 
@@ -121,39 +130,112 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   Widget build(BuildContext context) {
     final app = widget.environment.library.findById(widget.appId);
     final l10n = context.l10n;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(app?.manifest.name ?? l10n.runtimeTitle),
-        actions: <Widget>[
-          IconButton(
-            tooltip: l10n.permissionsTooltip,
-            icon: const Icon(Icons.shield_outlined),
-            onPressed: app == null
-                ? null
-                : () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PermissionScreen(
-                        environment: widget.environment,
-                        appId: widget.appId,
-                      ),
-                    ),
-                  ),
-          ),
-          IconButton(
-            tooltip: l10n.refreshTooltip,
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Stack(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _headerVisible
+          ? SystemUiOverlayStyle.dark
+          : SystemUiOverlayStyle.light,
+      child: Scaffold(
+        extendBody: true,
+        extendBodyBehindAppBar: !_headerVisible,
+        backgroundColor: Colors.black,
+        appBar: _headerVisible
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: _RuntimeHeader(
+                  title: app?.manifest.name ?? l10n.runtimeTitle,
+                  icon: app?.manifest.icon ?? '·',
+                  onPermissions: app == null
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PermissionScreen(
+                              environment: widget.environment,
+                              appId: widget.appId,
+                            ),
+                          ),
+                        ),
+                  onRefresh: _load,
+                  onBack: () => Navigator.of(context).maybePop(),
+                  permissionsTooltip: l10n.permissionsTooltip,
+                  refreshTooltip: l10n.refreshTooltip,
+                ),
+              )
+            : null,
+        body: Stack(
+          fit: StackFit.expand,
           children: <Widget>[
             WebViewWidget(controller: _controller),
-            if (_loading) const LinearProgressIndicator(),
+            if (_loading)
+              const Positioned(
+                left: 0,
+                top: 0,
+                right: 0,
+                child: LinearProgressIndicator(
+                  minHeight: 2.5,
+                  backgroundColor: Colors.transparent,
+                  color: WorkbenchPalette.coral,
+                ),
+              ),
             if (_error != null) _RuntimeError(message: _error!, onRetry: _load),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _setHeaderVisible(bool visible) async {
+    if (!mounted || _headerVisible == visible) {
+      return;
+    }
+    setState(() => _headerVisible = visible);
+    if (visible) {
+      _setDefaultTopSystemUi();
+    } else {
+      _setImmersiveSystemUi();
+    }
+  }
+
+  static void _enterImmersiveMode() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _setDefaultTopSystemUi();
+  }
+
+  static void _setDefaultTopSystemUi() {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
+
+  static void _setImmersiveSystemUi() {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
+
+  static void _exitImmersiveMode() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
   }
@@ -291,6 +373,138 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   }
 }
 
+class _RuntimeHeader extends StatelessWidget {
+  const _RuntimeHeader({
+    required this.title,
+    required this.icon,
+    required this.onRefresh,
+    required this.onBack,
+    required this.permissionsTooltip,
+    required this.refreshTooltip,
+    this.onPermissions,
+  });
+
+  final String title;
+  final String icon;
+  final VoidCallback onRefresh;
+  final VoidCallback onBack;
+  final VoidCallback? onPermissions;
+  final String permissionsTooltip;
+  final String refreshTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: WorkbenchPalette.cream,
+        border: Border(
+          bottom: BorderSide(color: WorkbenchPalette.sandLine, width: 1),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+          child: Row(
+            children: <Widget>[
+              _HeaderIconButton(
+                tooltip: '',
+                icon: Icons.arrow_back_rounded,
+                onPressed: onBack,
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: WorkbenchPalette.coralGradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  icon,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: WorkbenchPalette.inkPrimary,
+                  ),
+                ),
+              ),
+              _HeaderIconButton(
+                tooltip: permissionsTooltip,
+                icon: Icons.shield_outlined,
+                onPressed: onPermissions,
+              ),
+              const SizedBox(width: 8),
+              _HeaderIconButton(
+                tooltip: refreshTooltip,
+                icon: Icons.refresh_rounded,
+                onPressed: onRefresh,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: WorkbenchPalette.paper,
+            shape: BoxShape.circle,
+            border: Border.all(color: WorkbenchPalette.sand),
+          ),
+          child: Icon(
+            icon,
+            size: 17,
+            color: disabled
+                ? WorkbenchPalette.inkSoft
+                : WorkbenchPalette.inkPrimary,
+          ),
+        ),
+      ),
+    );
+    return tooltip.isEmpty ? button : Tooltip(message: tooltip, child: button);
+  }
+}
+
 class _RuntimeError extends StatelessWidget {
   const _RuntimeError({required this.message, required this.onRetry});
 
@@ -300,8 +514,8 @@ class _RuntimeError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
+      child: Container(
+        color: WorkbenchPalette.cream,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
@@ -311,23 +525,49 @@ class _RuntimeError extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  const Icon(Icons.error_outline, size: 44),
-                  const SizedBox(height: 12),
+                  Container(
+                    width: 84,
+                    height: 84,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: WorkbenchPalette.coralWash,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: WorkbenchPalette.coral.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.sentiment_dissatisfied_rounded,
+                      size: 38,
+                      color: WorkbenchPalette.coral,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     context.l10n.runtimeErrorTitle,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: WorkbenchPalette.inkPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.6,
+                      color: WorkbenchPalette.inkSecondary,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 22),
                   FilledButton.icon(
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh_rounded),
                     label: Text(context.l10n.reload),
                   ),
                 ],

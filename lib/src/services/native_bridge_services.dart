@@ -34,6 +34,7 @@ import 'notification_service.dart';
 typedef RuntimeContextProvider = BuildContext Function();
 typedef RuntimeEventEmitter =
     Future<void> Function(String type, Map<String, Object?> payload);
+typedef RuntimeHeaderVisibilitySetter = Future<void> Function(bool visible);
 
 class NativeBridgeServices {
   NativeBridgeServices({
@@ -41,6 +42,7 @@ class NativeBridgeServices {
     required this.notifications,
     required this.contextProvider,
     required this.emitEvent,
+    required this.setHeaderVisible,
     http.Client? httpClient,
     FlutterSecureStorage? secureStorage,
     AudioRecorder? recorder,
@@ -54,6 +56,7 @@ class NativeBridgeServices {
   final NotificationService notifications;
   final RuntimeContextProvider contextProvider;
   final RuntimeEventEmitter emitEvent;
+  final RuntimeHeaderVisibilitySetter setHeaderVisible;
   final http.Client _httpClient;
   final FlutterSecureStorage _secureStorage;
   final AudioRecorder _recorder;
@@ -229,6 +232,7 @@ class NativeBridgeServices {
       'actionSheet' => _actionSheet(request),
       'showLoading' => _showLoading(request),
       'hideLoading' => _hideLoading(),
+      'setHeaderVisible' => _setHeaderVisible(request),
       _ => throw const BridgeException(
         BridgeErrorCode.invalidParams,
         'unsupported ui method',
@@ -340,6 +344,18 @@ class NativeBridgeServices {
       _loadingVisible = false;
     }
     return _ok();
+  }
+
+  Future<Map<String, Object?>> _setHeaderVisible(BridgeRequest request) async {
+    final visible = request.params['visible'];
+    if (visible is! bool) {
+      throw const BridgeException(
+        BridgeErrorCode.invalidParams,
+        'visible must be a boolean',
+      );
+    }
+    await setHeaderVisible(visible);
+    return <String, Object?>{'visible': visible};
   }
 
   Future<Object?> _handleClipboard(BridgeRequest request) async {

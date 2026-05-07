@@ -41,6 +41,15 @@ class AppStorage {
     await _writeAppData(appId, <String, Object?>{});
   }
 
+  Future<void> delete(String appId) async {
+    final safeAppId = _safeAppId(appId);
+    _cache.remove(safeAppId);
+    final file = File('${rootDirectory.path}/$safeAppId.json');
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
   Future<Map<String, Object?>> _readAppData(String appId) async {
     final safeAppId = _safeAppId(appId);
     final cached = _cache[safeAppId];

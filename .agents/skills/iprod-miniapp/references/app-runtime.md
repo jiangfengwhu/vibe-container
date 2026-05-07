@@ -62,6 +62,7 @@ declare global {
         actionSheet(options: { options: string[] }): Promise<{ selectedIndex?: number; selected?: string }>;
         showLoading(options?: { message?: string }): Promise<{ ok: true }>;
         hideLoading(): Promise<{ ok: true }>;
+        setHeaderVisible(visible: boolean): Promise<{ visible: boolean }>;
       };
       clipboard: {
         readText(): Promise<{ text?: string }>;

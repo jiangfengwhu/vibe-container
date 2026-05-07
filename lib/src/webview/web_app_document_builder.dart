@@ -35,20 +35,50 @@ class WebAppDocumentBuilder {
       'assets/runtime/app_runtime.js',
     );
 
-    final index = await entryFile.readAsString();
+    final index = _removeViewportMeta(await entryFile.readAsString());
     final runtimeForApp = runtime
         .replaceAll('__APP_ID__', _jsString(manifest.id))
         .replaceAll('__RUNTIME_VERSION__', _jsString(manifest.runtimeVersion));
 
     final securityHead =
         '''
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<style id="iprod-container-style">
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  scrollbar-width: none;
+}
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+</style>
 <script>
 $runtimeForApp
 </script>
 ''';
 
     return _injectHead(index, securityHead);
+  }
+
+  static String _removeViewportMeta(String html) {
+    return html.replaceAll(
+      RegExp(
+        r'''<meta\s+[^>]*name=["']viewport["'][^>]*>''',
+        caseSensitive: false,
+      ),
+      '',
+    );
   }
 
   static String _injectHead(String html, String headInjection) {

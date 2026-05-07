@@ -3,11 +3,14 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:local_app_workbench/src/bridge/bridge_error.dart';
 import 'package:local_app_workbench/src/bridge/bridge_payload.dart';
 import 'package:local_app_workbench/src/bridge/runtime_bridge.dart';
 import 'package:local_app_workbench/src/models/app_manifest.dart';
 import 'package:local_app_workbench/src/models/installed_app.dart';
+import 'package:local_app_workbench/src/services/app_library.dart';
 import 'package:local_app_workbench/src/services/app_storage.dart';
 import 'package:local_app_workbench/src/services/bundle_manager.dart';
 import 'package:local_app_workbench/src/services/network_service.dart';
@@ -123,6 +126,19 @@ void main() {
       expect(request.namespace, BridgeNamespace.device);
       expect(request.method, 'getInfo');
     });
+
+    test('accepts header visibility bridge method', () {
+      final request = BridgeRequest.fromJson(<String, Object?>{
+        'requestId': '1',
+        'appId': 'local.bookkeeping',
+        'namespace': 'ui',
+        'method': 'setHeaderVisible',
+        'params': <String, Object?>{'visible': false},
+      });
+
+      expect(request.namespace, BridgeNamespace.ui);
+      expect(request.method, 'setHeaderVisible');
+    });
   });
 
   group('AppStorage', () {
@@ -154,6 +170,37 @@ void main() {
       expect(await storage.get('local.two', 'profile'), <String, Object?>{
         'name': 'Two',
       });
+    });
+  });
+
+  group('AppLibrary', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('workbench_library_');
+    });
+
+    tearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('removes app record and bundle directory', () async {
+      final bundleDirectory = Directory('${tempDir.path}/bundle')..createSync();
+      File('${bundleDirectory.path}/app.json').writeAsStringSync('{}');
+      final library = AppLibrary(Directory('${tempDir.path}/library'));
+      final app = _installedApp(
+        bundlePath: bundleDirectory.path,
+        grantedPermissions: <AppCapability, bool>{},
+      );
+
+      await library.load();
+      await library.upsert(app);
+      await library.remove(app.manifest.id);
+
+      expect(library.findById(app.manifest.id), isNull);
+      expect(bundleDirectory.existsSync(), isFalse);
     });
   });
 
@@ -339,6 +386,42 @@ void main() {
       expect(installed.manifest.entry, 'main.html');
       expect(File('${installed.bundlePath}/main.html').existsSync(), isTrue);
     });
+
+    test('downloads and imports archive from Cloudflare object key', () async {
+      final archive = Archive()
+        ..addFile(
+          ArchiveFile.bytes(
+            'app.json',
+            utf8.encode(jsonForTest(_manifestJson())),
+          ),
+        )
+        ..addFile(
+          ArchiveFile.bytes(
+            'index.html',
+            utf8.encode(
+              '<!doctype html><html><head></head><body>Remote</body></html>',
+            ),
+          ),
+        );
+      final bytes = ZipEncoder().encode(archive);
+
+      final manager = BundleManager(
+        bundleRoot: Directory('${tempDir.path}/bundles'),
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.toString(),
+            'https://infra.308893.xyz/api/r2/objects/remote.iprod.zip',
+          );
+          expect(request.headers['X-Sanyi-INFRA'], 'sanyi');
+          return http.Response.bytes(bytes, 200);
+        }),
+      );
+
+      final installed = await manager.importRemoteArchive('remote.iprod.zip');
+
+      expect(installed.manifest.id, 'local.bookkeeping');
+      expect(File('${installed.bundlePath}/index.html').existsSync(), isTrue);
+    });
   });
 }
 
@@ -364,10 +447,11 @@ Map<String, Object?> _manifestJson({
 
 InstalledApp _installedApp({
   required Map<AppCapability, bool> grantedPermissions,
+  String bundlePath = '/tmp/local.bookkeeping',
 }) {
   return InstalledApp(
     manifest: AppManifest.fromJson(_manifestJson()),
-    bundlePath: '/tmp/local.bookkeeping',
+    bundlePath: bundlePath,
     importedAt: DateTime.utc(2026, 5, 7),
     grantedPermissions: grantedPermissions,
   );

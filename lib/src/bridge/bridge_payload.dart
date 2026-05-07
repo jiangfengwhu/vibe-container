@@ -147,6 +147,7 @@ class BridgeRequest {
       'actionSheet',
       'showLoading',
       'hideLoading',
+      'setHeaderVisible',
     },
     BridgeNamespace.clipboard: <String>{'readText', 'writeText'},
     BridgeNamespace.share: <String>{'text', 'files'},

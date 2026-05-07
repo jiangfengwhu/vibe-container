@@ -52,7 +52,11 @@ textarea {
 .shell {
   width: min(1180px, 100%);
   margin: 0 auto;
-  padding: 22px;
+  padding:
+    calc(22px + env(safe-area-inset-top))
+    calc(22px + env(safe-area-inset-right))
+    calc(22px + env(safe-area-inset-bottom))
+    calc(22px + env(safe-area-inset-left));
 }
 
 .hero {
@@ -358,7 +362,11 @@ pre {
 
 @media (max-width: 560px) {
   .shell {
-    padding: 14px;
+    padding:
+      calc(14px + env(safe-area-inset-top))
+      calc(14px + env(safe-area-inset-right))
+      calc(14px + env(safe-area-inset-bottom))
+      calc(14px + env(safe-area-inset-left));
   }
 
   .hero > div:first-child,

@@ -31,22 +31,29 @@ The zip root must contain `app.json`, not an extra wrapper folder.
 2. Implement the app as a standalone web bundle. Local files and remote CDN resources are both allowed; if you use a build tool, include the generated files in the bundle.
    - The host loads the HTML path from `app.json.entry`.
    - CSS, JS, images, and assets are optional; keep local relative links correct inside the entry HTML.
-3. Use `window.AppRuntime` for all host capabilities. Do not call native channels directly.
-4. Keep data local-first. Use `AppRuntime.storage` for persistence.
-5. Request only the permissions that are truly needed in `app.json`.
-6. Run validation:
+3. Design for the host runtime chrome. The top header is visible by default and the bottom remains immersive; call `AppRuntime.ui.setHeaderVisible(false)` only when the app intentionally wants a fully immersive top edge. When the header is hidden, handle top safe area inside the mini app with CSS `env(safe-area-inset-top)` and/or `AppRuntime.app.getSafeArea()`.
+4. Use `window.AppRuntime` for all host capabilities. Do not call native channels directly.
+5. Keep data local-first. Use `AppRuntime.storage` for persistence.
+6. Request only the permissions that are truly needed in `app.json`.
+7. Run validation:
 
 ```bash
-node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs validate generated-bundles/<slug>
+node scripts/iprod_bundle.mjs validate generated-bundles/<slug>
 ```
 
-7. Pack:
+8. Pack:
 
 ```bash
-node .agents/skills/iprod-miniapp/scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.iprod.zip
+node scripts/iprod_bundle.mjs pack generated-bundles/<slug> --out dist/<slug>.iprod.zip
 ```
 
-8. If validation fails, fix the bundle and rerun validate/pack before finishing.
+9. Upload the packed archive. This is required; do not finish after packing only:
+
+```bash
+node scripts/upload_bundle.mjs dist/<slug>.iprod.zip --key <slug>.iprod.zip
+```
+
+10. Return the uploaded `downloadUrl` to the user. If validation, packing, or upload fails, fix the bundle and rerun validate/pack/upload before finishing.
 
 ## Manifest Rules
 
@@ -87,3 +94,4 @@ Load only when needed:
 - `references/app-runtime.md` for the JS API.
 - `references/app-json.md` for manifest examples.
 - `scripts/iprod_bundle.mjs` for deterministic create/validate/pack/inspect commands.
+- `scripts/upload_bundle.mjs` for uploading `.iprod.zip` archives to Cloudflare R2.

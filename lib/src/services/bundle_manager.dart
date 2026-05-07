@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/app_manifest.dart';
 import '../models/installed_app.dart';
@@ -37,11 +38,18 @@ class BundleSecurityException implements Exception {
 }
 
 class BundleManager {
-  BundleManager({required this.bundleRoot, AssetBundle? assetBundle})
-    : assetBundle = assetBundle ?? rootBundle;
+  BundleManager({
+    required this.bundleRoot,
+    AssetBundle? assetBundle,
+    http.Client? httpClient,
+  }) : assetBundle = assetBundle ?? rootBundle,
+       httpClient = httpClient ?? http.Client();
+
+  static const remoteBundleBaseUrl = 'https://infra.308893.xyz';
 
   final Directory bundleRoot;
   final AssetBundle assetBundle;
+  final http.Client httpClient;
 
   Future<List<SampleBundle>> listSamples() async {
     final source = await assetBundle.loadString(
@@ -144,6 +152,36 @@ class BundleManager {
     }
   }
 
+  Future<InstalledApp> importRemoteArchive(String source) async {
+    final uri = _remoteArchiveUri(source);
+    final response = await httpClient.get(
+      uri,
+      headers: const <String, String>{'X-Sanyi-INFRA': 'sanyi'},
+    );
+    if (response.statusCode != 200) {
+      throw BundleSecurityException(
+        'download failed: HTTP ${response.statusCode}',
+      );
+    }
+    if (response.bodyBytes.isEmpty) {
+      throw const BundleSecurityException('downloaded archive is empty');
+    }
+
+    final downloads = Directory('${bundleRoot.path}/.downloads');
+    await downloads.create(recursive: true);
+    final archiveFile = File(
+      '${downloads.path}/${DateTime.now().microsecondsSinceEpoch}.iprod.zip',
+    );
+    try {
+      await archiveFile.writeAsBytes(response.bodyBytes, flush: true);
+      return await importArchive(archiveFile.path);
+    } finally {
+      if (await archiveFile.exists()) {
+        await archiveFile.delete();
+      }
+    }
+  }
+
   Future<AppManifest> readManifest(Directory bundleDirectory) async {
     final manifestFile = File('${bundleDirectory.path}/app.json');
     if (!await manifestFile.exists()) {
@@ -214,6 +252,38 @@ class BundleManager {
     await file.writeAsBytes(
       bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
       flush: true,
+    );
+  }
+
+  static Uri _remoteArchiveUri(String source) {
+    final trimmed = source.trim();
+    if (trimmed.isEmpty) {
+      throw const BundleSecurityException('remote bundle key is empty');
+    }
+
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed != null && parsed.hasScheme) {
+      if (parsed.scheme != 'https' || parsed.host != 'infra.308893.xyz') {
+        throw const BundleSecurityException(
+          'remote bundle URL must use https://infra.308893.xyz/',
+        );
+      }
+      if (!parsed.path.startsWith('/api/r2/objects/')) {
+        throw const BundleSecurityException(
+          'remote bundle URL must point to /api/r2/objects/<key>',
+        );
+      }
+      return parsed;
+    }
+
+    final key = trimmed.replaceAll(RegExp(r'^/+'), '');
+    if (key.isEmpty || key.contains('..') || key.contains('/')) {
+      throw const BundleSecurityException(
+        'remote bundle key must be a single safe object name',
+      );
+    }
+    return Uri.parse(
+      '$remoteBundleBaseUrl/api/r2/objects/${Uri.encodeComponent(key)}',
     );
   }
 }

@@ -142,6 +142,9 @@
       const action = await AppRuntime.ui.actionSheet({
         options: ['设为高优先级', '请求支援', '记录为观察', '取消']
       });
+      await AppRuntime.ui.setHeaderVisible(false);
+      await delay(700);
+      await AppRuntime.ui.setHeaderVisible(true);
       return { confirm: confirm, actionSheet: action };
     },
 

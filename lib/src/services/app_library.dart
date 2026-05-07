@@ -64,6 +64,20 @@ class AppLibrary extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> remove(String appId) async {
+    final index = _apps.indexWhere((app) => app.manifest.id == appId);
+    if (index < 0) {
+      return;
+    }
+    final app = _apps.removeAt(index);
+    final bundleDirectory = Directory(app.bundlePath);
+    if (await bundleDirectory.exists()) {
+      await bundleDirectory.delete(recursive: true);
+    }
+    await _save();
+    notifyListeners();
+  }
+
   Future<void> setLastUsed(String appId, DateTime usedAt) async {
     final app = findById(appId);
     if (app == null) {
