@@ -98,11 +98,6 @@ flutter:
 
   assets:
     - assets/runtime/app_runtime.js
-    - assets/sample_bundles/index.json
-    - assets/sample_bundles/checkin/app.json
-    - assets/sample_bundles/checkin/index.html
-    - assets/sample_bundles/checkin/bundle.css
-    - assets/sample_bundles/checkin/bundle.js
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

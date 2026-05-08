@@ -101,18 +101,25 @@ class SoftCard extends StatelessWidget {
       boxShadow: shadow ?? WorkbenchPalette.tinyShadow,
     );
 
-    final content = Padding(padding: padding, child: child);
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: decoration,
-        child: InkWell(
-          borderRadius: radiusGeom,
-          onTap: onTap,
-          splashColor: WorkbenchPalette.coralWash.withValues(alpha: 0.45),
-          highlightColor: WorkbenchPalette.coralWash.withValues(alpha: 0.25),
-          child: content,
-        ),
+    final paddedChild = Padding(padding: padding, child: child);
+
+    return Container(
+      decoration: decoration,
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: radiusGeom),
+        child: onTap == null
+            ? paddedChild
+            : InkWell(
+                borderRadius: radiusGeom,
+                onTap: onTap,
+                splashColor: WorkbenchPalette.coralWash.withValues(alpha: 0.45),
+                highlightColor: WorkbenchPalette.coralWash.withValues(
+                  alpha: 0.25,
+                ),
+                child: paddedChild,
+              ),
       ),
     );
   }

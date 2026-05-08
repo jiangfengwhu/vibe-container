@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/workbench_localizations.dart';
-import '../models/app_manifest.dart';
 import '../models/installed_app.dart';
 import '../services/app_environment.dart';
 import 'import_screen.dart';
@@ -69,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                   child: HeroBanner(
                     eyebrow: '${l10n.appTitle}  ·  CURIO',
                     title: '把好玩的小工具，\n一件件拾回家。',
-                    subtitle: 'AI 生成的迷你应用，慢慢用，慢慢搭。',
+                    subtitle: '把你的app放进口袋，拒绝localhost😛',
                     trailing: _ImportFab(onTap: () => _openImport(context)),
                     contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                   ),
@@ -380,11 +379,10 @@ class _EmptyLibrary extends StatelessWidget {
                   letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 22),
               FilledButton.icon(
                 onPressed: onImport,
                 icon: const Icon(Icons.add_rounded),
-                label: Text(l10n.importSampleBundle),
+                label: Text(l10n.importApp),
               ),
             ],
           ),
@@ -592,11 +590,6 @@ class _AppTileBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final manifest = app.manifest;
-    final l10n = context.l10n;
-    final lastUsed = app.lastUsedAt == null
-        ? l10n.neverOpened
-        : l10n.lastUsed(_formatDate(app.lastUsedAt!.toLocal()));
-    final permissions = manifest.permissions.toList();
 
     return SoftCard(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -604,26 +597,24 @@ class _AppTileBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               IconSticker(label: manifest.icon, gradient: gradient),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        manifest.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
-                          color: WorkbenchPalette.inkPrimary,
-                        ),
+                    Text(
+                      manifest.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        color: WorkbenchPalette.inkPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -638,88 +629,13 @@ class _AppTileBody extends StatelessWidget {
                         letterSpacing: 0.2,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: <Widget>[
-                        const Icon(
-                          Icons.schedule_rounded,
-                          size: 13,
-                          color: WorkbenchPalette.inkSoft,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            lastUsed,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.2,
-                              color: WorkbenchPalette.inkSoft,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
             ],
           ),
-          if (permissions.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: <Widget>[
-                for (final permission in permissions.take(4))
-                  SoftTag(
-                    label: l10n.capabilityTitle(permission),
-                    color: _tagColorFor(permission),
-                  ),
-                if (permissions.length > 4)
-                  SoftTag(
-                    label: '+${permissions.length - 4}',
-                    color: WorkbenchPalette.inkSecondary,
-                  ),
-              ],
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  static Color _tagColorFor(AppCapability capability) {
-    switch (capability) {
-      case AppCapability.storage:
-      case AppCapability.secureStorage:
-      case AppCapability.file:
-        return WorkbenchPalette.coral;
-      case AppCapability.notification:
-      case AppCapability.events:
-        return const Color(0xFFE6A027);
-      case AppCapability.network:
-      case AppCapability.download:
-        return const Color(0xFF7E9DB8);
-      case AppCapability.media:
-      case AppCapability.barcode:
-      case AppCapability.audio:
-        return const Color(0xFFB89DC4);
-      case AppCapability.location:
-      case AppCapability.calendar:
-        return const Color(0xFF94A878);
-      default:
-        return WorkbenchPalette.inkSecondary;
-    }
-  }
-
-  static String _formatDate(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '${value.year}-$month-$day $hour:$minute';
   }
 }

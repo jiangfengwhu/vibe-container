@@ -39,18 +39,20 @@ class WorkbenchLocalizations {
   String get refreshTooltip => _text('refreshTooltip');
   String get emptyLibraryTitle => _text('emptyLibraryTitle');
   String get emptyLibraryBody => _text('emptyLibraryBody');
-  String get importSampleBundle => _text('importSampleBundle');
-  String get neverOpened => _text('neverOpened');
+  String get importApp => _text('importApp');
   String get importScreenTitle => _text('importScreenTitle');
   String get importRemoteTitle => _text('importRemoteTitle');
   String get importRemoteBody => _text('importRemoteBody');
+  String importRemoteFillDemoLabel(String demoBundleKey) {
+    return _format(
+      _text('importRemoteFillDemoLabel'),
+      <String, String>{'key': demoBundleKey},
+    );
+  }
   String get remoteBundleInputLabel => _text('remoteBundleInputLabel');
   String get remoteBundleInputHint => _text('remoteBundleInputHint');
   String get downloadAndImport => _text('downloadAndImport');
   String get remoteBundleRequired => _text('remoteBundleRequired');
-  String get builtInSamples => _text('builtInSamples');
-  String get reimport => _text('reimport');
-  String get import => _text('import');
   String get runtimeTitle => _text('runtimeTitle');
   String get appNotFound => _text('appNotFound');
   String get deny => _text('deny');
@@ -84,10 +86,6 @@ class WorkbenchLocalizations {
   String get deleteAppHint => _text('deleteAppHint');
   String get swipeToManageHint => _text('swipeToManageHint');
   String get manageAction => _text('manageAction');
-
-  String lastUsed(String date) {
-    return _format(_text('lastUsed'), <String, String>{'date': date});
-  }
 
   String imported(String appName) {
     return _format(_text('imported'), <String, String>{'app': appName});
@@ -239,22 +237,19 @@ const _localizedValues = <String, Map<String, String>>{
     'permissionsTooltip': '权限',
     'refreshTooltip': '刷新',
     'emptyLibraryTitle': '还没有本地应用',
-    'emptyLibraryBody': '导入示例 bundle，即可把它作为本地 WebView 应用运行。',
-    'importSampleBundle': '导入示例应用',
-    'neverOpened': '从未打开',
-    'lastUsed': '上次使用 {date}',
+    'emptyLibraryBody':
+        '',
+    'importApp': '导入应用',
     'importScreenTitle': '导入应用 bundle',
-    'importRemoteTitle': '从 Cloudflare 下载',
+    'importRemoteTitle': '从云端导入',
     'importRemoteBody':
-        '输入上传脚本返回的对象 key 或完整下载 URL，宿主会从 infra.308893.xyz 下载并校验导入。',
-    'remoteBundleInputLabel': 'Bundle key 或下载 URL',
+        '输入 iprod skills 生成的 bundle 名即可导入',
+    'importRemoteFillDemoLabel': '点击填入官方使用说明',
     'remoteBundleInputHint':
-        '例如 local.checkin.ipd 或 https://infra.308893.xyz/api/r2/objects/...',
+        '例如：拾趣.ipd',
+    'remoteBundleInputLabel': 'bundle 名',
     'downloadAndImport': '下载并导入',
-    'remoteBundleRequired': '请输入 bundle key 或下载 URL。',
-    'builtInSamples': '内置示例',
-    'reimport': '重新导入',
-    'import': '导入',
+    'remoteBundleRequired': '请输入 bundle 名。',
     'imported': '{app} 已导入',
     'importFailed': '导入失败：{error}',
     'runtimeTitle': '运行时',
@@ -362,22 +357,18 @@ const _localizedValues = <String, Map<String, String>>{
     'refreshTooltip': 'Refresh',
     'emptyLibraryTitle': 'No local apps yet',
     'emptyLibraryBody':
-        'Import a sample bundle to run it as a local WebView app.',
-    'importSampleBundle': 'Import sample bundle',
-    'neverOpened': 'Never opened',
-    'lastUsed': 'Last used {date}',
+        '',
+    'importApp': 'Import app',
     'importScreenTitle': 'Import app bundle',
     'importRemoteTitle': 'Download from Cloudflare',
     'importRemoteBody':
-        'Enter the object key or full download URL returned by the upload script. The host downloads from infra.308893.xyz, validates, and imports it.',
+        'Enter the bundle key or full download URL from the upload script. The host downloads from infra.308893.xyz, validates, and imports it. Tap below to fill the official demo key.',
+    'importRemoteFillDemoLabel': 'Tap to fill the official usage guide',
     'remoteBundleInputLabel': 'Bundle key or download URL',
     'remoteBundleInputHint':
         'Example: local.checkin.ipd or https://infra.308893.xyz/api/r2/objects/...',
     'downloadAndImport': 'Download and import',
     'remoteBundleRequired': 'Enter a bundle key or download URL.',
-    'builtInSamples': 'Built-in samples',
-    'reimport': 'Re-import',
-    'import': 'Import',
     'imported': '{app} imported',
     'importFailed': 'Import failed: {error}',
     'runtimeTitle': 'Runtime',

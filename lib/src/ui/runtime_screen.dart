@@ -169,7 +169,9 @@ class _RuntimeScreenState extends State<RuntimeScreen>
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              WebViewWidget(controller: _controller),
+              RepaintBoundary(
+                child: WebViewWidget(controller: _controller),
+              ),
               if (_loading)
                 const Positioned(
                   left: 0,

@@ -10,30 +10,66 @@ class WebAppDocumentBuilder {
 
   final AssetBundle assetBundle;
 
+  /// Cached `app_runtime.js` — identical for all mini apps; avoids re-reading the asset.
+  String? _runtimeJsTemplate;
+
+  Future<String> _loadRuntimeJsTemplate() async {
+    final cached = _runtimeJsTemplate;
+    if (cached != null) {
+      return cached;
+    }
+    final loaded = await assetBundle.loadString('assets/runtime/app_runtime.js');
+    _runtimeJsTemplate = loaded;
+    return loaded;
+  }
+
   Future<File> buildRuntimeFile({
     required Directory bundleDirectory,
     required AppManifest manifest,
   }) async {
     final entryFile = File('${bundleDirectory.path}/${manifest.entry}');
-    final html = await build(
-      bundleDirectory: bundleDirectory,
-      manifest: manifest,
-    );
     final runtimeFile = File(
       '${entryFile.parent.path}/.iprod_runtime_${entryFile.uri.pathSegments.last}',
     );
+    final fingerprintFile = File('${runtimeFile.path}.fp');
+
+    final template = await _loadRuntimeJsTemplate();
+    final entryStat = await entryFile.stat();
+    final fingerprint =
+        '${manifest.id}|${manifest.runtimeVersion}|'
+        '${entryStat.modified.millisecondsSinceEpoch}|'
+        '${entryStat.size}|'
+        '${template.hashCode}';
+
+    if (await runtimeFile.exists() && await fingerprintFile.exists()) {
+      try {
+        final existing = await fingerprintFile.readAsString();
+        if (existing == fingerprint) {
+          return runtimeFile;
+        }
+      } on FileSystemException {
+        // Fall through and regenerate.
+      }
+    }
+
+    final html = await build(
+      bundleDirectory: bundleDirectory,
+      manifest: manifest,
+      runtimeTemplate: template,
+    );
     await runtimeFile.writeAsString(html, flush: true);
+    await fingerprintFile.writeAsString(fingerprint, flush: true);
     return runtimeFile;
   }
 
   Future<String> build({
     required Directory bundleDirectory,
     required AppManifest manifest,
+    String? runtimeTemplate,
   }) async {
     final entryFile = File('${bundleDirectory.path}/${manifest.entry}');
-    final runtime = await assetBundle.loadString(
-      'assets/runtime/app_runtime.js',
-    );
+    final runtime =
+        runtimeTemplate ?? await _loadRuntimeJsTemplate();
 
     final index = _removeViewportMeta(await entryFile.readAsString());
     final runtimeForApp = runtime

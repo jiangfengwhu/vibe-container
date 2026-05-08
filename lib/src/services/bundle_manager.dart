@@ -1,32 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/app_manifest.dart';
 import '../models/installed_app.dart';
-
-class SampleBundle {
-  const SampleBundle({
-    required this.id,
-    required this.title,
-    required this.description,
-  });
-
-  final String id;
-  final String title;
-  final String description;
-
-  factory SampleBundle.fromJson(Map<String, Object?> json) {
-    return SampleBundle(
-      id: json['id']! as String,
-      title: json['title']! as String,
-      description: json['description']! as String,
-    );
-  }
-}
 
 class BundleSecurityException implements Exception {
   const BundleSecurityException(this.message);
@@ -40,64 +18,13 @@ class BundleSecurityException implements Exception {
 class BundleManager {
   BundleManager({
     required this.bundleRoot,
-    AssetBundle? assetBundle,
     http.Client? httpClient,
-  }) : assetBundle = assetBundle ?? rootBundle,
-       httpClient = httpClient ?? http.Client();
+  }) : httpClient = httpClient ?? http.Client();
 
   static const remoteBundleBaseUrl = 'https://infra.308893.xyz';
 
   final Directory bundleRoot;
-  final AssetBundle assetBundle;
   final http.Client httpClient;
-
-  Future<List<SampleBundle>> listSamples() async {
-    final source = await assetBundle.loadString(
-      'assets/sample_bundles/index.json',
-    );
-    final decoded = jsonDecode(source);
-    if (decoded is! List) {
-      return const <SampleBundle>[];
-    }
-    return decoded
-        .whereType<Map<String, Object?>>()
-        .map(SampleBundle.fromJson)
-        .toList();
-  }
-
-  Future<InstalledApp> importSample(String sampleId) async {
-    final assetPrefix = 'assets/sample_bundles/$sampleId';
-    final manifest = AppManifest.fromJsonString(
-      await assetBundle.loadString('$assetPrefix/app.json'),
-    );
-    final target = Directory('${bundleRoot.path}/${manifest.id}');
-    if (await target.exists()) {
-      await target.delete(recursive: true);
-    }
-    await target.create(recursive: true);
-
-    final assetManifest = await AssetManifest.loadFromAssetBundle(assetBundle);
-    final bundleAssets = assetManifest
-        .listAssets()
-        .where((asset) => asset.startsWith('$assetPrefix/'))
-        .toList();
-    for (final assetPath in bundleAssets) {
-      final relative = assetPath.substring(assetPrefix.length + 1);
-      final bytes = await assetBundle.load(assetPath);
-      await _writeByteData(File('${target.path}/$relative'), bytes);
-    }
-
-    await validateBundle(target, manifest);
-
-    return InstalledApp(
-      manifest: manifest,
-      bundlePath: target.path,
-      importedAt: DateTime.now().toUtc(),
-      grantedPermissions: <AppCapability, bool>{
-        for (final permission in manifest.permissions) permission: false,
-      },
-    );
-  }
 
   Future<InstalledApp> importArchive(String archivePath) async {
     final archiveFile = File(archivePath);
@@ -245,14 +172,6 @@ class BundleManager {
         await entity.copy(targetPath);
       }
     }
-  }
-
-  static Future<void> _writeByteData(File file, ByteData bytes) async {
-    await file.parent.create(recursive: true);
-    await file.writeAsBytes(
-      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      flush: true,
-    );
   }
 
   static Uri _remoteArchiveUri(String source) {
