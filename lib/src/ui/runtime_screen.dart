@@ -232,6 +232,7 @@ class _RuntimeScreenState extends State<RuntimeScreen>
           ? SystemUiOverlayStyle.dark
           : SystemUiOverlayStyle.light,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         extendBody: !immersive.bottomInset,
         extendBodyBehindAppBar: !showHeader,
         backgroundColor: Colors.black,

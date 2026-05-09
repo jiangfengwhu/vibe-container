@@ -12,7 +12,8 @@ class WebAppDocumentBuilder {
 
   /// 宿主注入逻辑（securityHead + compatHead）的版本号。
   /// 修改任意注入内容后请 bump 此值，让所有 mini app 缓存的 runtime html 重新生成。
-  static const String _hostInjectionVersion = 'host-v2-android16-scroll-fix';
+  static const String _hostInjectionVersion =
+      'host-v3-keyboard-scroll-stabilizer';
 
   /// Cached `app_runtime.js` — identical for all mini apps; avoids re-reading the asset.
   String? _runtimeJsTemplate;
@@ -159,8 +160,86 @@ body {
 </script>
 ''';
 
+    const keyboardHead = '''
+<script id="iprod-keyboard-script">
+(function () {
+  'use strict';
+  if (typeof navigator === 'undefined') return;
+  if (!/Android/i.test(navigator.userAgent || '')) return;
+
+  var active = null;
+  var raf = 0;
+
+  function isEditable(element) {
+    if (!element || element.nodeType !== 1) return false;
+    var tag = (element.tagName || '').toLowerCase();
+    return tag === 'input' ||
+      tag === 'textarea' ||
+      tag === 'select' ||
+      element.isContentEditable;
+  }
+
+  function schedule(delay) {
+    if (delay) {
+      setTimeout(function () { schedule(0); }, delay);
+      return;
+    }
+    if (raf) return;
+    raf = requestAnimationFrame(function () {
+      raf = 0;
+      revealFocusedElement();
+    });
+  }
+
+  function revealFocusedElement() {
+    var element = active;
+    if (!element || !document.contains(element)) return;
+    var rect = element.getBoundingClientRect();
+    var viewport = window.visualViewport;
+    var top = viewport ? viewport.offsetTop : 0;
+    var height = viewport ? viewport.height : window.innerHeight;
+    var bottom = top + height;
+    var margin = 24;
+    if (rect.top >= top + margin && rect.bottom <= bottom - margin) return;
+    try {
+      element.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'auto'
+      });
+    } catch (_) {
+      element.scrollIntoView(false);
+    }
+  }
+
+  document.addEventListener('focusin', function (event) {
+    if (!isEditable(event.target)) return;
+    active = event.target;
+    schedule(80);
+  }, true);
+
+  document.addEventListener('focusout', function (event) {
+    if (event.target === active) active = null;
+  }, true);
+
+  document.addEventListener('input', function () {
+    if (active) schedule(0);
+  }, true);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      if (active) schedule(0);
+    });
+    window.visualViewport.addEventListener('scroll', function () {
+      if (active) schedule(0);
+    });
+  }
+})();
+</script>
+''';
+
     final withTopHead = _injectHead(index, securityHead);
-    return _injectBeforeHeadClose(withTopHead, compatHead);
+    return _injectBeforeHeadClose(withTopHead, '$compatHead$keyboardHead');
   }
 
   static String _removeViewportMeta(String html) {
