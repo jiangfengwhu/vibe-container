@@ -45,7 +45,7 @@
     });
   }
 
-  window.__AppRuntimeResolve = function (message) {
+  function resolveBridgeMessage(message) {
     const response = typeof message === 'string' ? JSON.parse(message) : message;
     const item = pending.get(response.requestId);
     if (!item) {
@@ -61,6 +61,22 @@
         message: 'Unknown bridge error'
       });
     }
+  }
+
+  window.__AppRuntimeResolve = function (message) {
+    if (Array.isArray(message)) {
+      message.forEach(resolveBridgeMessage);
+      return;
+    }
+    resolveBridgeMessage(message);
+  };
+
+  window.__AppRuntimeResolveBatch = function (messages) {
+    if (!Array.isArray(messages)) {
+      resolveBridgeMessage(messages);
+      return;
+    }
+    messages.forEach(resolveBridgeMessage);
   };
 
   window.__AppRuntimeEmit = function (message) {
@@ -86,9 +102,12 @@
       throw new TypeError('listener must be a function');
     }
     const items = listeners.get(type) || [];
+    const shouldSubscribe = items.length === 0;
     items.push(listener);
     listeners.set(type, items);
-    post('events', 'subscribe', { type: type }).catch(function () {});
+    if (shouldSubscribe) {
+      post('events', 'subscribe', { type: type }).catch(function () {});
+    }
     return function unsubscribe() {
       const current = listeners.get(type) || [];
       const next = current.filter(function (item) { return item !== listener; });

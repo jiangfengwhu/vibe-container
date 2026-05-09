@@ -22,7 +22,9 @@ class WebAppDocumentBuilder {
     if (cached != null) {
       return cached;
     }
-    final loaded = await assetBundle.loadString('assets/runtime/app_runtime.js');
+    final loaded = await assetBundle.loadString(
+      'assets/runtime/app_runtime.js',
+    );
     _runtimeJsTemplate = loaded;
     return loaded;
   }
@@ -43,7 +45,7 @@ class WebAppDocumentBuilder {
         '${manifest.id}|${manifest.runtimeVersion}|'
         '${entryStat.modified.millisecondsSinceEpoch}|'
         '${entryStat.size}|'
-        '${template.hashCode}|'
+        '${_stableHash(template)}|'
         '$_hostInjectionVersion';
 
     if (await runtimeFile.exists() && await fingerprintFile.exists()) {
@@ -62,8 +64,8 @@ class WebAppDocumentBuilder {
       manifest: manifest,
       runtimeTemplate: template,
     );
-    await runtimeFile.writeAsString(html, flush: true);
-    await fingerprintFile.writeAsString(fingerprint, flush: true);
+    await runtimeFile.writeAsString(html);
+    await fingerprintFile.writeAsString(fingerprint);
     return runtimeFile;
   }
 
@@ -73,8 +75,7 @@ class WebAppDocumentBuilder {
     String? runtimeTemplate,
   }) async {
     final entryFile = File('${bundleDirectory.path}/${manifest.entry}');
-    final runtime =
-        runtimeTemplate ?? await _loadRuntimeJsTemplate();
+    final runtime = runtimeTemplate ?? await _loadRuntimeJsTemplate();
 
     final index = _removeViewportMeta(await entryFile.readAsString());
     final runtimeForApp = runtime
@@ -202,5 +203,14 @@ body {
 
   static String _jsString(String value) {
     return value.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
+  }
+
+  static String _stableHash(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
   }
 }

@@ -80,8 +80,8 @@ class AppStorage {
     final safeAppId = _safeAppId(appId);
     await rootDirectory.create(recursive: true);
     final file = File('${rootDirectory.path}/$safeAppId.json');
-    await file.writeAsString(jsonEncode(data), flush: true);
-    _cache[safeAppId] = Map<String, Object?>.from(data);
+    await file.writeAsString(jsonEncode(data));
+    _cache[safeAppId] = data;
   }
 
   static String _safeAppId(String appId) {

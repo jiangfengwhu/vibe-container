@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/workbench_localizations.dart';
@@ -150,10 +152,11 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _openApp(BuildContext context, InstalledApp app) async {
-    await environment.library.setLastUsed(app.manifest.id, DateTime.now());
-    if (!context.mounted) {
-      return;
-    }
+    unawaited(
+      environment.library
+          .setLastUsed(app.manifest.id, DateTime.now())
+          .catchError((Object _) {}),
+    );
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>

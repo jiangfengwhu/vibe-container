@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -41,10 +42,15 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   late final WebViewController _controller;
   late final RuntimeBridge _bridge;
   late final NativeBridgeServices _nativeServices;
+  late final Widget _webView;
   final WebAppDocumentBuilder _documentBuilder = WebAppDocumentBuilder();
-  String? _error;
-  bool _loading = true;
+  final ValueNotifier<_RuntimeLoadState> _loadState =
+      ValueNotifier<_RuntimeLoadState>(const _RuntimeLoadState.loading());
+  final List<Map<String, Object?>> _pendingBridgeResponses =
+      <Map<String, Object?>>[];
+  Timer? _bridgeFlushTimer;
   bool _didLoad = false;
+  int _loadToken = 0;
 
   @override
   void initState() {
@@ -75,15 +81,12 @@ class _RuntimeScreenState extends State<RuntimeScreen>
         NavigationDelegate(
           onPageFinished: (_) {
             if (mounted) {
-              setState(() => _loading = false);
+              _loadState.value = const _RuntimeLoadState.ready();
             }
           },
           onWebResourceError: (error) {
             if (mounted && error.isForMainFrame == true) {
-              setState(() {
-                _loading = false;
-                _error = error.description;
-              });
+              _loadState.value = _RuntimeLoadState.error(error.description);
             }
           },
           onNavigationRequest: (request) {
@@ -108,6 +111,7 @@ class _RuntimeScreenState extends State<RuntimeScreen>
       );
 
     _configureAndroidWebView();
+    _webView = RepaintBoundary(child: WebViewWidget(controller: _controller));
   }
 
   void _configureAndroidWebView() {
@@ -146,7 +150,8 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   ) async {
     final acceptTypes = params.acceptTypes;
     final wantsImage = acceptTypes.any(
-      (t) => t.startsWith('image/') || t == '.jpg' || t == '.jpeg' || t == '.png',
+      (t) =>
+          t.startsWith('image/') || t == '.jpg' || t == '.jpeg' || t == '.png',
     );
     final wantsVideo = acceptTypes.any(
       (t) => t.startsWith('video/') || t == '.mp4' || t == '.mov',
@@ -195,6 +200,9 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _bridgeFlushTimer?.cancel();
+    _pendingBridgeResponses.clear();
+    _loadState.dispose();
     _exitImmersiveMode();
     super.dispose();
   }
@@ -258,22 +266,30 @@ class _RuntimeScreenState extends State<RuntimeScreen>
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              RepaintBoundary(
-                child: WebViewWidget(controller: _controller),
+              _webView,
+              ValueListenableBuilder<_RuntimeLoadState>(
+                valueListenable: _loadState,
+                builder: (context, state, _) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      if (state.loading)
+                        const Positioned(
+                          left: 0,
+                          top: 0,
+                          right: 0,
+                          child: LinearProgressIndicator(
+                            minHeight: 2.5,
+                            backgroundColor: Colors.transparent,
+                            color: WorkbenchPalette.coral,
+                          ),
+                        ),
+                      if (state.error != null)
+                        _RuntimeError(message: state.error!, onRetry: _load),
+                    ],
+                  );
+                },
               ),
-              if (_loading)
-                const Positioned(
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(
-                    minHeight: 2.5,
-                    backgroundColor: Colors.transparent,
-                    color: WorkbenchPalette.coral,
-                  ),
-                ),
-              if (_error != null)
-                _RuntimeError(message: _error!, onRetry: _load),
             ],
           ),
         ),
@@ -314,32 +330,32 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   }
 
   Future<void> _load() async {
+    _loadToken += 1;
+    final loadToken = _loadToken;
+    _bridgeFlushTimer?.cancel();
+    _bridgeFlushTimer = null;
+    _pendingBridgeResponses.clear();
+
     final app = widget.environment.library.findById(widget.appId);
     if (app == null) {
-      setState(() {
-        _loading = false;
-        _error = context.l10n.appNotFound;
-      });
+      _loadState.value = _RuntimeLoadState.error(context.l10n.appNotFound);
       return;
     }
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    _loadState.value = const _RuntimeLoadState.loading();
 
     try {
       final runtimeFile = await _documentBuilder.buildRuntimeFile(
         bundleDirectory: Directory(app.bundlePath),
         manifest: app.manifest,
       );
+      if (!mounted || loadToken != _loadToken) {
+        return;
+      }
       await _controller.loadFile(runtimeFile.path);
     } catch (error) {
       if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = error.toString();
-        });
+        _loadState.value = _RuntimeLoadState.error(error.toString());
       }
     }
   }
@@ -356,20 +372,59 @@ class _RuntimeScreenState extends State<RuntimeScreen>
   }
 
   Future<void> _handleBridgeMessage(JavaScriptMessage message) async {
+    final loadToken = _loadToken;
     final response = await _bridgeResponseForMessage(message.message);
-    final encoded = jsonEncode(response.toJson());
-    await _controller.runJavaScript('window.__AppRuntimeResolve($encoded);');
+    if (!mounted || loadToken != _loadToken) {
+      return;
+    }
+    _queueBridgeResponse(response);
+  }
+
+  void _queueBridgeResponse(BridgeResponse response) {
+    _pendingBridgeResponses.add(response.toJson());
+    _bridgeFlushTimer ??= Timer(Duration.zero, _flushBridgeResponses);
+  }
+
+  Future<void> _flushBridgeResponses() async {
+    _bridgeFlushTimer = null;
+    if (!mounted || _pendingBridgeResponses.isEmpty) {
+      _pendingBridgeResponses.clear();
+      return;
+    }
+
+    final responses = List<Map<String, Object?>>.of(_pendingBridgeResponses);
+    _pendingBridgeResponses.clear();
+    final encoded = jsonEncode(responses);
+    try {
+      await _controller.runJavaScript(
+        '(function(r){'
+        'if(window.__AppRuntimeResolveBatch){'
+        'window.__AppRuntimeResolveBatch(r);return;'
+        '}'
+        'for(var i=0;i<r.length;i+=1){window.__AppRuntimeResolve(r[i]);}'
+        '})($encoded);',
+      );
+    } on PlatformException {
+      // The page may have been replaced while a native request was in flight.
+    }
   }
 
   Future<void> _emitRuntimeEvent(
     String type,
     Map<String, Object?> payload,
   ) async {
+    if (!mounted) {
+      return;
+    }
     final encoded = jsonEncode(<String, Object?>{
       'type': type,
       'payload': payload,
     });
-    await _controller.runJavaScript('window.__AppRuntimeEmit($encoded);');
+    try {
+      await _controller.runJavaScript('window.__AppRuntimeEmit($encoded);');
+    } on PlatformException {
+      // Runtime events are best-effort while the WebView is navigating.
+    }
   }
 
   Future<BridgeResponse> _bridgeResponseForMessage(String source) async {
@@ -444,6 +499,20 @@ class _RuntimeScreenState extends State<RuntimeScreen>
     }
     return shouldGrant;
   }
+}
+
+class _RuntimeLoadState {
+  const _RuntimeLoadState._({required this.loading, this.error});
+
+  const _RuntimeLoadState.loading() : this._(loading: true);
+
+  const _RuntimeLoadState.ready() : this._(loading: false);
+
+  const _RuntimeLoadState.error(String message)
+    : this._(loading: false, error: message);
+
+  final bool loading;
+  final String? error;
 }
 
 class _RuntimeHeader extends StatelessWidget {

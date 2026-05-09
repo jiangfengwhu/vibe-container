@@ -127,7 +127,6 @@ class AppLibrary extends ChangeNotifier {
       const JsonEncoder.withIndent(
         '  ',
       ).convert(_apps.map((app) => app.toJson()).toList()),
-      flush: true,
     );
   }
 
