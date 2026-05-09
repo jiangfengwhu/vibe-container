@@ -10,6 +10,10 @@ class WebAppDocumentBuilder {
 
   final AssetBundle assetBundle;
 
+  /// 宿主注入逻辑（securityHead + compatHead）的版本号。
+  /// 修改任意注入内容后请 bump 此值，让所有 mini app 缓存的 runtime html 重新生成。
+  static const String _hostInjectionVersion = 'host-v2-android16-scroll-fix';
+
   /// Cached `app_runtime.js` — identical for all mini apps; avoids re-reading the asset.
   String? _runtimeJsTemplate;
 
@@ -39,7 +43,8 @@ class WebAppDocumentBuilder {
         '${manifest.id}|${manifest.runtimeVersion}|'
         '${entryStat.modified.millisecondsSinceEpoch}|'
         '${entryStat.size}|'
-        '${template.hashCode}';
+        '${template.hashCode}|'
+        '$_hostInjectionVersion';
 
     if (await runtimeFile.exists() && await fingerprintFile.exists()) {
       try {
@@ -104,7 +109,57 @@ $runtimeForApp
 </script>
 ''';
 
-    return _injectHead(index, securityHead);
+    // 兼容修复 Android 16 (SDK 36) 强制 edge-to-edge 后 WebView 的两类滚动问题：
+    //
+    // 1) mini app 习惯写 `body { overflow-x: hidden }`，根据 CSS 规范这会让
+    //    `overflow-y: visible` 被升级为 `auto`，body 由此变成"Y 方向自滚容器"。
+    //    Android 16 WebView 初次布局时常常算错这种容器的 scroll size，导致页面
+    //    无法垂直滚动。`overflow-x: clip` 视觉等价 hidden，但不会创建滚动容器，
+    //    彻底回避此规范升级。用 `!important` + `</head>` 前注入，确保覆盖
+    //    mini app 自身样式表和内联 style。
+    //
+    // 2) 即便 body 不是自滚容器，Android 16 WebView 的初始 scroll 尺寸也偶发算错，
+    //    需要一次 layout 失效才会恢复（这就是用户原本必须先弹一次键盘 / 弹窗
+    //    才能滚动的原因）。在 Android UA 上 load 完后主动改一帧
+    //    `documentElement.style.minHeight` 模拟 reflow，把 WebView 踢正。
+    const compatHead = '''
+<style id="iprod-compat-style">
+html,
+body {
+  overflow-x: clip !important;
+}
+</style>
+<script id="iprod-compat-script">
+(function () {
+  'use strict';
+  if (typeof navigator === 'undefined') return;
+  if (!/Android/i.test(navigator.userAgent || '')) return;
+  function kickReflow() {
+    var de = document.documentElement;
+    if (!de) return;
+    var prev = de.style.minHeight;
+    de.style.minHeight = '100.001%';
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () {
+        de.style.minHeight = prev || '';
+      });
+    } else {
+      setTimeout(function () { de.style.minHeight = prev || ''; }, 0);
+    }
+  }
+  if (document.readyState === 'complete') {
+    setTimeout(kickReflow, 0);
+  } else {
+    window.addEventListener('load', function () {
+      setTimeout(kickReflow, 0);
+    }, { once: true });
+  }
+})();
+</script>
+''';
+
+    final withTopHead = _injectHead(index, securityHead);
+    return _injectBeforeHeadClose(withTopHead, compatHead);
   }
 
   static String _removeViewportMeta(String html) {
@@ -128,6 +183,21 @@ $runtimeForApp
       return html.replaceFirst(headClose, '$headInjection</head>');
     }
     return '$headInjection$html';
+  }
+
+  /// 把内容插到 `</head>` 之前，让它晚于 mini app 自己的 `<link>`/`<style>` 出现，
+  /// 用于需要"覆盖" mini app 样式的场景（如 Android 16 兼容修复）。
+  static String _injectBeforeHeadClose(String html, String injection) {
+    final headClose = RegExp(r'</head>', caseSensitive: false);
+    if (headClose.hasMatch(html)) {
+      return html.replaceFirst(headClose, '$injection</head>');
+    }
+    final headOpen = RegExp(r'<head[^>]*>', caseSensitive: false);
+    final match = headOpen.firstMatch(html);
+    if (match != null) {
+      return html.replaceRange(match.end, match.end, injection);
+    }
+    return '$injection$html';
   }
 
   static String _jsString(String value) {
