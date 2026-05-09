@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../bridge/bridge_error.dart';
 import '../bridge/bridge_payload.dart';
@@ -101,6 +106,90 @@ class _RuntimeScreenState extends State<RuntimeScreen>
         'AppRuntimeNative',
         onMessageReceived: _handleBridgeMessage,
       );
+
+    _configureAndroidWebView();
+  }
+
+  void _configureAndroidWebView() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final platform = _controller.platform;
+    if (platform is! AndroidWebViewController) return;
+    AndroidWebViewController.enableDebugging(false);
+    platform.setMediaPlaybackRequiresUserGesture(false);
+    platform.setOnShowFileSelector(_androidShowFileSelector);
+    platform.setOnPlatformPermissionRequest((request) async {
+      var allGranted = true;
+      for (final type in request.types) {
+        if (type == WebViewPermissionResourceType.camera) {
+          allGranted &= await _ensurePermission(ph.Permission.camera);
+        } else if (type == WebViewPermissionResourceType.microphone) {
+          allGranted &= await _ensurePermission(ph.Permission.microphone);
+        }
+      }
+      if (allGranted) {
+        request.grant();
+      } else {
+        request.deny();
+      }
+    });
+  }
+
+  Future<bool> _ensurePermission(ph.Permission permission) async {
+    final status = await permission.status;
+    if (status.isGranted || status.isLimited) return true;
+    final result = await permission.request();
+    return result.isGranted || result.isLimited;
+  }
+
+  Future<List<String>> _androidShowFileSelector(
+    FileSelectorParams params,
+  ) async {
+    final acceptTypes = params.acceptTypes;
+    final wantsImage = acceptTypes.any(
+      (t) => t.startsWith('image/') || t == '.jpg' || t == '.jpeg' || t == '.png',
+    );
+    final wantsVideo = acceptTypes.any(
+      (t) => t.startsWith('video/') || t == '.mp4' || t == '.mov',
+    );
+
+    try {
+      if (params.isCaptureEnabled) {
+        if (!await _ensurePermission(ph.Permission.camera)) {
+          return const <String>[];
+        }
+        final picker = ImagePicker();
+        final XFile? file = wantsVideo && !wantsImage
+            ? await picker.pickVideo(source: ImageSource.camera)
+            : await picker.pickImage(source: ImageSource.camera);
+        if (file == null) return const <String>[];
+        return <String>[Uri.file(file.path).toString()];
+      }
+
+      if (wantsImage || wantsVideo) {
+        final picker = ImagePicker();
+        if (params.mode == FileSelectorMode.openMultiple && wantsImage) {
+          final files = await picker.pickMultiImage();
+          return files.map((f) => Uri.file(f.path).toString()).toList();
+        }
+        final XFile? file = wantsVideo && !wantsImage
+            ? await picker.pickVideo(source: ImageSource.gallery)
+            : await picker.pickImage(source: ImageSource.gallery);
+        if (file == null) return const <String>[];
+        return <String>[Uri.file(file.path).toString()];
+      }
+
+      final result = await FilePicker.pickFiles(
+        allowMultiple: params.mode == FileSelectorMode.openMultiple,
+        withData: false,
+      );
+      if (result == null) return const <String>[];
+      return result.files
+          .where((f) => f.path != null)
+          .map((f) => Uri.file(f.path!).toString())
+          .toList();
+    } catch (_) {
+      return const <String>[];
+    }
   }
 
   @override

@@ -101,7 +101,8 @@ class BundleManager {
     );
     try {
       await archiveFile.writeAsBytes(response.bodyBytes, flush: true);
-      return await importArchive(archiveFile.path);
+      final installed = await importArchive(archiveFile.path);
+      return installed.copyWith(remoteSource: source.trim());
     } finally {
       if (await archiveFile.exists()) {
         await archiveFile.delete();

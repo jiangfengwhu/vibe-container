@@ -94,7 +94,8 @@ Requires manifest declaration, user runtime authorization, HTTPS, and manifest h
 - `share`: `text`, `files`
 - `open`: `url`, `phone`, `email`, `map`, `settings`
 - `file`: `pick`, `saveText`, `saveBase64`, `readBase64`, `share`
-- `media`: `pickImage`, `pickVideo`, `captureImage`, `captureVideo`
+- `media`: `pickImage`, `pickVideo`, `captureImage`, `captureVideo`, `saveImage`, `saveVideo`
+  - `saveImage({ path?, base64?, album? })` / `saveVideo({ path?, base64?, fileName?, album? })` 把图片/视频写入系统相册（iOS 相簿 / Android MediaStore）。`path` 必须是当前会话内通过 `file.*` 或 `media.pick*` 拿到的本地路径。
 - `location`: `getPermissionStatus`, `requestPermission`, `getCurrentPosition`
 - `haptics`: `selection`, `light`, `medium`, `heavy`, `success`, `warning`, `error`, `vibrate`
 - `barcode`: `scan`

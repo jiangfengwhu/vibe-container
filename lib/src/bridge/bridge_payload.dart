@@ -162,6 +162,8 @@ class BridgeRequest {
       'pickVideo',
       'captureImage',
       'captureVideo',
+      'saveImage',
+      'saveVideo',
     },
     BridgeNamespace.location: <String>{
       'getPermissionStatus',

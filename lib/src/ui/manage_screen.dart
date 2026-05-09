@@ -58,7 +58,7 @@ class ManageScreen extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.zero,
               children: <Widget>[
-                _ManageHero(app: app),
+                _ManageHero(app: app, environment: environment),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 22, 16, 32),
                   child: Column(
@@ -153,14 +153,23 @@ class ManageScreen extends StatelessWidget {
   }
 }
 
-class _ManageHero extends StatelessWidget {
-  const _ManageHero({required this.app});
+class _ManageHero extends StatefulWidget {
+  const _ManageHero({required this.app, required this.environment});
 
   final InstalledApp app;
+  final AppEnvironment environment;
+
+  @override
+  State<_ManageHero> createState() => _ManageHeroState();
+}
+
+class _ManageHeroState extends State<_ManageHero> {
+  bool _updating = false;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final app = widget.app;
     final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
@@ -204,7 +213,18 @@ class _ManageHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const FloatingBackButton(),
+                Row(
+                  children: <Widget>[
+                    const FloatingBackButton(),
+                    const Spacer(),
+                    _HeroIconButton(
+                      icon: Icons.refresh_rounded,
+                      busy: _updating,
+                      tooltip: _updating ? l10n.updating : l10n.update,
+                      onTap: _updating ? null : _runUpdate,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -239,15 +259,30 @@ class _ManageHero extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Text(
-                            app.manifest.name,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              height: 1.25,
-                              letterSpacing: 0.3,
-                              color: WorkbenchPalette.inkPrimary,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              Flexible(
+                                child: Text(
+                                  app.manifest.name,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.25,
+                                    letterSpacing: 0.3,
+                                    color: WorkbenchPalette.inkPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SoftTag(
+                                label: 'v${app.manifest.version}',
+                                color: WorkbenchPalette.coralInk,
+                                background: WorkbenchPalette.paper.withValues(
+                                  alpha: 0.78,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -270,6 +305,120 @@ class _ManageHero extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _runUpdate() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final existing = widget.app;
+    final source = _resolveSource(existing);
+
+    setState(() => _updating = true);
+    try {
+      final fresh = await widget.environment.bundleManager
+          .importRemoteArchive(source);
+
+      final mergedPermissions = <AppCapability, bool>{
+        for (final permission in fresh.manifest.permissions)
+          permission: existing.grantedPermissions[permission] ?? false,
+      };
+      final merged = fresh.copyWith(
+        importedAt: existing.importedAt,
+        lastUsedAt: existing.lastUsedAt,
+        grantedPermissions: mergedPermissions,
+        immersiveOverride: existing.immersiveOverride,
+        remoteSource: fresh.remoteSource ?? existing.remoteSource ?? source,
+      );
+
+      await widget.environment.library.upsert(merged);
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.updated(merged.manifest.name))),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.updateFailed(error))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updating = false);
+      }
+    }
+  }
+
+  /// 优先使用第一次远程导入时记录的 bundle key / URL；
+  /// 老数据没有该字段时退回到 `<name>.ipd` 兼容方案。
+  static String _resolveSource(InstalledApp app) {
+    final recorded = app.remoteSource?.trim();
+    if (recorded != null && recorded.isNotEmpty) {
+      return recorded;
+    }
+    return '${app.manifest.name}.ipd';
+  }
+}
+
+class _HeroIconButton extends StatelessWidget {
+  const _HeroIconButton({
+    required this.icon,
+    required this.onTap,
+    this.busy = false,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool busy;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: WorkbenchPalette.paper.withValues(
+              alpha: disabled ? 0.6 : 0.85,
+            ),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: WorkbenchPalette.coral.withValues(alpha: 0.18),
+            ),
+            boxShadow: WorkbenchPalette.tinyShadow,
+          ),
+          child: busy
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: WorkbenchPalette.coralInk,
+                  ),
+                )
+              : Icon(
+                  icon,
+                  size: 18,
+                  color: disabled
+                      ? WorkbenchPalette.inkSoft
+                      : WorkbenchPalette.inkPrimary,
+                ),
+        ),
+      ),
+    );
+    if (tooltip == null) {
+      return button;
+    }
+    return Tooltip(message: tooltip!, child: button);
   }
 }
 

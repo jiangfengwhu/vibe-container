@@ -9,6 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:gal/gal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -522,11 +523,66 @@ class NativeBridgeServices {
       'pickVideo' => _pickMedia(request, ImageSource.gallery, image: false),
       'captureImage' => _pickMedia(request, ImageSource.camera, image: true),
       'captureVideo' => _pickMedia(request, ImageSource.camera, image: false),
+      'saveImage' => _saveToGallery(request, image: true),
+      'saveVideo' => _saveToGallery(request, image: false),
       _ => throw const BridgeException(
         BridgeErrorCode.invalidParams,
         'unsupported media method',
       ),
     };
+  }
+
+  Future<Map<String, Object?>> _saveToGallery(
+    BridgeRequest request, {
+    required bool image,
+  }) async {
+    final hasAccess = await Gal.hasAccess(toAlbum: false);
+    if (!hasAccess) {
+      final granted = await Gal.requestAccess(toAlbum: false);
+      if (!granted) {
+        throw const BridgeException(
+          BridgeErrorCode.permissionDenied,
+          'photo library access denied',
+        );
+      }
+    }
+    final album = _optionalString(request, 'album');
+    final path = _optionalString(request, 'path');
+    final base64Data = _optionalString(request, 'base64');
+
+    try {
+      if (path != null) {
+        _ensureGrantedPaths(<String>[path]);
+        if (image) {
+          await Gal.putImage(path, album: album);
+        } else {
+          await Gal.putVideo(path, album: album);
+        }
+      } else if (base64Data != null) {
+        final bytes = base64Decode(base64Data);
+        if (image) {
+          await Gal.putImageBytes(bytes, album: album);
+        } else {
+          final tmp = await _writeRuntimeFile(
+            fileName: _optionalString(request, 'fileName') ?? 'video.mp4',
+            bytes: bytes,
+          );
+          final tmpPath = (tmp['file']! as Map)['path'] as String;
+          await Gal.putVideo(tmpPath, album: album);
+        }
+      } else {
+        throw const BridgeException(
+          BridgeErrorCode.invalidParams,
+          'media.save requires either `path` or `base64`',
+        );
+      }
+    } on GalException catch (error) {
+      final code = error.type == GalExceptionType.accessDenied
+          ? BridgeErrorCode.permissionDenied
+          : BridgeErrorCode.internalError;
+      throw BridgeException(code, error.type.message);
+    }
+    return <String, Object?>{'saved': true};
   }
 
   Future<Map<String, Object?>> _pickMedia(

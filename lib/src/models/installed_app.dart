@@ -8,6 +8,7 @@ class InstalledApp {
     required this.grantedPermissions,
     this.lastUsedAt,
     this.immersiveOverride,
+    this.remoteSource,
   });
 
   final AppManifest manifest;
@@ -18,6 +19,10 @@ class InstalledApp {
 
   /// 用户在管理页里覆盖的沉浸式配置。`null` 表示沿用 manifest 默认。
   final AppImmersiveConfig? immersiveOverride;
+
+  /// 第一次远程导入时使用的 bundle key 或下载 URL，用于"更新"时按原始包名重新下载。
+  /// 本地文件导入时为 `null`。
+  final String? remoteSource;
 
   /// 当前生效的沉浸式配置：override > manifest。
   AppImmersiveConfig get effectiveImmersive {
@@ -32,6 +37,8 @@ class InstalledApp {
     Map<AppCapability, bool>? grantedPermissions,
     AppImmersiveConfig? immersiveOverride,
     bool clearImmersiveOverride = false,
+    String? remoteSource,
+    bool clearRemoteSource = false,
   }) {
     return InstalledApp(
       manifest: manifest ?? this.manifest,
@@ -42,6 +49,9 @@ class InstalledApp {
       immersiveOverride: clearImmersiveOverride
           ? null
           : (immersiveOverride ?? this.immersiveOverride),
+      remoteSource: clearRemoteSource
+          ? null
+          : (remoteSource ?? this.remoteSource),
     );
   }
 
@@ -79,6 +89,9 @@ class InstalledApp {
           : null,
       grantedPermissions: granted,
       immersiveOverride: override,
+      remoteSource: json['remoteSource'] is String
+          ? json['remoteSource']! as String
+          : null,
     );
   }
 
@@ -92,6 +105,7 @@ class InstalledApp {
         entry.key.key: entry.value,
     },
     'immersiveOverride': immersiveOverride?.toJson(),
+    'remoteSource': remoteSource,
   };
 
   bool hasPermission(AppCapability capability) {

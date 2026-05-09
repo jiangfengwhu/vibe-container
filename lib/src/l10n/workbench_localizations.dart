@@ -84,6 +84,18 @@ class WorkbenchLocalizations {
   String get dangerSectionEyebrow => _text('dangerSectionEyebrow');
   String get deleteAppButton => _text('deleteAppButton');
   String get deleteAppHint => _text('deleteAppHint');
+  String get updateSectionTitle => _text('updateSectionTitle');
+  String get updateSectionEyebrow => _text('updateSectionEyebrow');
+  String get updateAppButton => _text('updateAppButton');
+  String get updateAppHint => _text('updateAppHint');
+  String get update => _text('update');
+  String get updating => _text('updating');
+  String updated(String appName) {
+    return _format(_text('updated'), <String, String>{'app': appName});
+  }
+  String updateFailed(Object error) {
+    return _format(_text('updateFailed'), <String, String>{'error': '$error'});
+  }
   String get swipeToManageHint => _text('swipeToManageHint');
   String get manageAction => _text('manageAction');
 
@@ -246,7 +258,7 @@ const _localizedValues = <String, Map<String, String>>{
         '输入 iprod skills 生成的 bundle 名即可导入',
     'importRemoteFillDemoLabel': '点击填入官方使用说明',
     'remoteBundleInputHint':
-        '例如：拾趣.ipd',
+        '例如：拾趣（无需输入 .ipd）',
     'remoteBundleInputLabel': 'bundle 名',
     'downloadAndImport': '下载并导入',
     'remoteBundleRequired': '请输入 bundle 名。',
@@ -286,6 +298,14 @@ const _localizedValues = <String, Map<String, String>>{
     'dangerSectionEyebrow': 'DANGER',
     'deleteAppButton': '删除这只小工具',
     'deleteAppHint': '会移除应用、本地 bundle 与隔离存储。',
+    'updateSectionTitle': '检查更新',
+    'updateSectionEyebrow': 'UPDATE',
+    'updateAppButton': '更新到最新版本',
+    'updateAppHint': '按当前应用名重新下载 bundle，权限与沉浸模式设置会被保留。',
+    'update': '更新',
+    'updating': '更新中…',
+    'updated': '{app} 已更新',
+    'updateFailed': '更新失败：{error}',
     'swipeToManageHint': '左滑卡片可以管理',
     'manageAction': '管理',
     'permissionRequestTitle': '{app} 请求使用{capability}',
@@ -412,6 +432,15 @@ const _localizedValues = <String, Map<String, String>>{
     'deleteAppButton': 'Delete this little tool',
     'deleteAppHint':
         'Removes the app, its local bundle, and its isolated storage.',
+    'updateSectionTitle': 'Check for updates',
+    'updateSectionEyebrow': 'UPDATE',
+    'updateAppButton': 'Update to the latest version',
+    'updateAppHint':
+        'Re-download the bundle by the current app name. Your permission and immersive settings will be kept.',
+    'update': 'Update',
+    'updating': 'Updating…',
+    'updated': '{app} updated',
+    'updateFailed': 'Update failed: {error}',
     'swipeToManageHint': 'Swipe a card left to manage',
     'manageAction': 'Manage',
     'permissionRequestTitle': '{app} requests {capability}',

@@ -7,6 +7,19 @@ import 'theme.dart';
 /// 云端示例 bundle 对象名（与上传脚本 / R2 上一致）。
 const String kRemoteOfficialDemoBundleKey = '拾趣.ipd';
 
+/// 输入框里展示给用户的示例 bundle 名（不含扩展名，提交时会自动补全）。
+const String kRemoteOfficialDemoBundleDisplayName = '拾趣';
+
+const String _kBundleExtension = '.ipd';
+
+String _normalizeRemoteBundleSource(String input) {
+  final trimmed = input.trim();
+  if (trimmed.isEmpty) return trimmed;
+  if (trimmed.contains('://')) return trimmed;
+  if (trimmed.toLowerCase().endsWith(_kBundleExtension)) return trimmed;
+  return '$trimmed$_kBundleExtension';
+}
+
 class ImportScreen extends StatefulWidget {
   const ImportScreen({required this.environment, super.key});
 
@@ -64,12 +77,18 @@ class _ImportScreenState extends State<ImportScreen> {
   }
 
   Future<void> _importRemoteArchive() async {
-    final source = _remoteController.text.trim();
+    final source = _normalizeRemoteBundleSource(_remoteController.text);
     if (source.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.remoteBundleRequired)),
       );
       return;
+    }
+    if (_remoteController.text.trim() != source) {
+      _remoteController.text = source;
+      _remoteController.selection = TextSelection.fromPosition(
+        TextPosition(offset: source.length),
+      );
     }
 
     setState(() => _busyRemoteImport = true);
@@ -185,11 +204,18 @@ class _RemoteImportCard extends StatelessWidget {
               ),
               onPressed: enabled
                   ? () {
-                      controller.text = kRemoteOfficialDemoBundleKey;
+                      controller.text = kRemoteOfficialDemoBundleDisplayName;
+                      controller.selection = TextSelection.fromPosition(
+                        TextPosition(
+                          offset: kRemoteOfficialDemoBundleDisplayName.length,
+                        ),
+                      );
                     }
                   : null,
               child: Text(
-                l10n.importRemoteFillDemoLabel(kRemoteOfficialDemoBundleKey),
+                l10n.importRemoteFillDemoLabel(
+                  kRemoteOfficialDemoBundleDisplayName,
+                ),
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.5,

@@ -27,7 +27,7 @@
       const timer = window.setTimeout(function () {
         pending.delete(requestId);
         reject({ code: 'INTERNAL_ERROR', message: 'Bridge request timed out' });
-      }, 15000);
+      }, 60 * 60 * 1000);
 
       pending.set(requestId, {
         resolve: resolve,
@@ -273,6 +273,12 @@
       },
       captureVideo: function (options) {
         return post('media', 'captureVideo', options || {});
+      },
+      saveImage: function (options) {
+        return post('media', 'saveImage', options || {});
+      },
+      saveVideo: function (options) {
+        return post('media', 'saveVideo', options || {});
       }
     }),
     location: Object.freeze({
